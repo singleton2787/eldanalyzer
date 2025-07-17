@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ELD Driver Log Analyzer</title>
+    <style>
+        /* [all your CSS from your previous file here, unchanged for brevity] */
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
+        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; font-size: 2.5em; background: linear-gradient(45deg, #3498db, #9b59b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .upload-section { background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px; border: 2px dashed #dee2e6; text-align: center; transition: all 0.3s ease; }
+        .upload-section:hover { border-color: #3498db; background: #e3f2fd; }
+        .file-input { display: none; }
+        .file-label { display: inline-block; padding: 15px 30px; background: linear-gradient(45deg, #3498db, #2980b9); color: white; border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3); }
+        .file-label:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4); }
+        .analyze-btn { background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
+        .analyze-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4); }
+        .analyze-btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
+        .results { display: none; animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric-card { background: white; padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; }
+        .metric-card:hover { transform: translateY(-5px); }
+        .metric-value { font-size: 2.5em; font-weight: bold; margin-bottom: 10px; }
+        .metric-label { color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
+        .violation { color: #e74c3c; }
+        .warning { color: #f39c12; }
+        .good { color: #27ae60; }
+        .section { background: white; margin-bottom: 30px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
+        .section h2 { color: #2c3e50; margin-bottom: 20px; font-size: 1.8em; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
+        .violation-item { background: #fee; border-left: 4px solid #e74c3c; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
+        .violation-date { font-weight: bold; color: #e74c3c; margin-bottom: 5px; }
+        .table-container { overflow-x: auto; border-radius: 10px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: linear-gradient(45deg, #3498db, #2980b9); color: white; font-weight: bold; }
+        tr:hover { background: #f8f9fa; }
+        .progress-bar { height: 20px; background: #ecf0f1; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: linear-gradient(45deg, #3498db, #2980b9); transition: width 0.3s ease; }
+        .chart-container { background: white; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .day-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
+        .day-stat { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px; }
+        .day-stat-value { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; }
+        .day-stat-label { color: #7f8c8d; font-size: 0.9em; }
+        .loading { text-align: center; padding: 50px; color: #7f8c8d; }
+        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+    <!-- PDF.js CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h1>🚛 ELD Driver Log Analyzer</h1>
+        
+        <div class="upload-section">
+            <h3>Upload ELD Log File</h3>
+            <p>Select a <strong>text or PDF file</strong> containing ELD driver logs</p>
+            <input type="file" id="fileInput" class="file-input" accept=".txt,.log,.pdf">
+            <label for="fileInput" class="file-label">Choose File</label>
+            <div id="fileName" style="margin-top: 10px; color: #7f8c8d;"></div>
+            <button id="analyzeBtn" class="analyze-btn" disabled>Analyze Logs</button>
+        </div>
+
+        <div id="loading" class="loading" style="display: none;">
+            <div class="spinner"></div>
+            <p>Analyzing driver logs...</p>
+        </div>
+
+        <div id="results" class="results">
+            <div class="metrics-grid">
+                <div class="metric-card">
+                    <div id="totalDays" class="metric-value">0</div>
+                    <div class="metric-label">Days Analyzed</div>
+                </div>
+                <div class="metric-card">
+                    <div id="totalMiles" class="metric-value">0</div>
+                    <div class="metric-label">Total Miles</div>
+                </div>
+                <div class="metric-card">
+                    <div id="totalViolations" class="metric-value violation">0</div>
+                    <div class="metric-label">HOS Violations</div>
+                </div>
+                <div class="metric-card">
+                    <div id="avgDailyMiles" class="metric-value">0</div>
+                    <div class="metric-label">Avg Daily Miles</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚨 Hours of Service Violations</h2>
+                <div id="violationsList"></div>
+            </div>
+
+            <div class="section">
+                <h2>📊 Daily Summary</h2>
+                <div id="dailySummary"></div>
+            </div>
+
+            <div class="section">
+                <h2>🕐 Driving Patterns</h2>
+                <div id="drivingPatterns"></div>
+            </div>
+
+            <div class="section">
+                <h2>📈 Detailed Log Analysis</h2>
+                <div class="table-container">
+                    <table id="logTable">
+                        <thead>
+                            <tr>
+                                <th>Date</th>
+                                <th>Total Drive Time</th>
+                                <th>On Duty Time</th>
+                                <th>Miles</th>
+                                <th>Violations</th>
+                                <th>Status</th>
+                            </tr>
+                        </thead>
+                        <tbody id="logTableBody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        class ELDAnalyzer {
+            constructor() {
+                this.logData = [];
+                this.violations = [];
+                this.dailyStats = {};
+                this.bindEvents();
+            }
+
+            bindEvents() {
+                document.getElementById('fileInput').addEventListener('change', this.handleFileSelect.bind(this));
+                document.getElementById('analyzeBtn').addEventListener('click', this.analyzeData.bind(this));
+            }
+
+            handleFileSelect(event) {
+                const file = event.target.files[0];
+                if (file) {
+                    document.getElementById('fileName').textContent = file.name;
+                    document.getElementById('analyzeBtn').disabled = false;
+                    this.file = file;
+                }
+            }
+
+            async analyzeData() {
+                if (!this.file) return;
+
+                document.getElementById('loading').style.display = 'block';
+                document.getElementById('results').style.display = 'none';
+
+                try {
+                    const text = await this.readFile(this.file);
+                    this.parseLogData(text);
+                    this.calculateViolations();
+                    this.generateDailyStats();
+                    this.displayResults();
+                } catch (error) {
+                    console.error('Error analyzing data:', error);
+                    alert('Error analyzing the log file. Please check the file format.');
+                } finally {
+                    document.getElementById('loading').style.display = 'none';
+                }
+            }
+
+            readFile(file) {
+                // PDF support using PDF.js
+                return new Promise((resolve, reject) => {
+                    if (
+                        file.type === "application/pdf" ||
+                        file.name.endsWith('.pdf')
+                    ) {
+                        const reader = new FileReader();
+                        reader.onload = async (e) => {
+                            const typedarray = new Uint8Array(e.target.result);
+                            try {
+                                const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+                                let textContent = '';
+                                for (let i = 1; i <= pdf.numPages; i++) {
+                                    const page = await pdf.getPage(i);
+                                    const txt = await page.getTextContent();
+                                    // PDF.js returns lots of "chunks", join them into lines.
+                                    const pageText = txt.items.map(item => item.str).join(' ');
+                                    textContent += pageText + '\n';
+                                }
+                                resolve(textContent);
+                            } catch (err) {
+                                reject(err);
+                            }
+                        };
+                        reader.onerror = reject;
+                        reader.readAsArrayBuffer(file);
+                    } else {
+                        // Default to text reading
+                        const reader = new FileReader();
+                        reader.onload = e => resolve(e.target.result);
+                        reader.onerror = reject;
+                        reader.readAsText(file);
+                    }
+                });
+            }
+
+            parseLogData(text) {
+                // [parsing logic: unchanged]
+                const lines = text.split('\n');
+                this.logData = [];
+                let currentDay = null;
+
+                for (let line of lines) {
+                    line = line.trim();
+                    
+                    // Parse record date
+                    if (line.includes('Record Date')) {
+                        const parts = line.split(/\s+/);
+                        const dateIndex = parts.findIndex(p => p.includes('-'));
+                        if (dateIndex !== -1) {
+                            currentDay = {
+                                date: parts[dateIndex],
+                                events: [],
+                                totalHours: {
+                                    offDuty: 0,
+                                    sleeperBerth: 0,
+                                    driving: 0,
+                                    onDuty: 0
+                                },
+                                miles: 0,
+                                startOdometer: 0,
+                                endOdometer: 0
+                            };
+                        }
+                    }
+
+                    // Parse odometer data
+                    if (line.includes('Start-End Odometer')) {
+                        const match = line.match(/(\d+)-(\d+)/);
+                        if (match && currentDay) {
+                            currentDay.startOdometer = parseInt(match[1]);
+                            currentDay.endOdometer = parseInt(match[2]);
+                            currentDay.miles = currentDay.endOdometer - currentDay.startOdometer;
+                        }
+                    }
+
+                    // Parse time entries
+                    const timeMatch = line.match(/^(\d{2}):(\d{2}):(\d{2})\s+(.+?)\s+(\d+)\s+(\d+\.\d+)\s+(\w+)/);
+                    if (timeMatch && currentDay) {
+                        const [, hour, minute, second, location, odometer, engineHours, status] = timeMatch;
+                        currentDay.events.push({
+                            time: `${hour}:${minute}:${second}`,
+                            location,
+                            odometer: parseInt(odometer),
+                            engineHours: parseFloat(engineHours),
+                            status,
+                            fullLine: line
+                        });
+                    }
+
+                    // Parse daily totals
+                    const hoursMatch = line.match(/(\d{2}):(\d{2}):(\d{2})/g);
+                    if (hoursMatch && hoursMatch.length === 4 && currentDay) {
+                        currentDay.totalHours.offDuty = this.parseTimeToHours(hoursMatch[0]);
+                        currentDay.totalHours.sleeperBerth = this.parseTimeToHours(hoursMatch[1]);
+                        currentDay.totalHours.driving = this.parseTimeToHours(hoursMatch[2]);
+                        currentDay.totalHours.onDuty = this.parseTimeToHours(hoursMatch[3]);
+                        
+                        if (currentDay.date) {
+                            this.logData.push(currentDay);
+                        }
+                    }
+                }
+            }
+
+            parseTimeToHours(timeString) {
+                const [hours, minutes, seconds] = timeString.split(':').map(Number);
+                return hours + minutes / 60 + seconds / 3600;
+            }
+
+            calculateViolations() {
+                this.violations = [];
+
+                for (const day of this.logData) {
+                    const violations = [];
+
+                    // 11-hour driving limit
+                    if (day.totalHours.driving > 11) {
+                        violations.push({
+                            type: 'Driving Time Violation',
+                            description: `Exceeded 11-hour driving limit: ${day.totalHours.driving.toFixed(2)} hours`,
+                            severity: 'Critical'
+                        });
+                    }
+
+                    // 14-hour on-duty limit
+                    const totalOnDuty = day.totalHours.driving + day.totalHours.onDuty;
+                    if (totalOnDuty > 14) {
+                        violations.push({
+                            type: '14-Hour Rule Violation',
+                            description: `Exceeded 14-hour on-duty limit: ${totalOnDuty.toFixed(2)} hours`,
+                            severity: 'Critical'
+                        });
+                    }
+
+                    // 10-hour rest requirement
+                    if (day.totalHours.offDuty + day.totalHours.sleeperBerth < 10) {
+                        violations.push({
+                            type: 'Insufficient Rest',
+                            description: `Less than 10 hours of rest: ${(day.totalHours.offDuty + day.totalHours.sleeperBerth).toFixed(2)} hours`,
+                            severity: 'Warning'
+                        });
+                    }
+
+                    if (violations.length > 0) {
+                        this.violations.push({
+                            date: day.date,
+                            violations
+                        });
+                    }
+                }
+            }
+
+            generateDailyStats() {
+                this.dailyStats = {
+                    totalDays: this.logData.length,
+                    totalMiles: this.logData.reduce((sum, day) => sum + day.miles, 0),
+                    totalViolations: this.violations.length,
+                    avgDrivingHours: this.logData.reduce((sum, day) => sum + day.totalHours.driving, 0) / this.logData.length,
+                    avgOnDutyHours: this.logData.reduce((sum, day) => sum + day.totalHours.onDuty, 0) / this.logData.length,
+                    avgMilesPerDay: this.logData.reduce((sum, day) => sum + day.miles, 0) / this.logData.length
+                };
+            }
+
+            displayResults() {
+                // Update metrics
+                document.getElementById('totalDays').textContent = this.dailyStats.totalDays;
+                document.getElementById('totalMiles').textContent = this.dailyStats.totalMiles.toLocaleString();
+                document.getElementById('totalViolations').textContent = this.dailyStats.totalViolations;
+                document.getElementById('avgDailyMiles').textContent = Math.round(this.dailyStats.avgMilesPerDay);
+
+                // Display violations
+                this.displayViolations();
+
+                // Display daily summary
+                this.displayDailySummary();
+
+                // Display driving patterns
+                this.displayDrivingPatterns();
+
+                // Display detailed table
+                this.displayDetailedTable();
+
+                document.getElementById('results').style.display = 'block';
+            }
+
+            displayViolations() {
+                const container = document.getElementById('violationsList');
+                
+                if (this.violations.length === 0) {
+                    container.innerHTML = '<p style="color: #27ae60; font-weight: bold;">✅ No violations detected</p>';
+                    return;
+                }
+
+                let html = '';
+                for (const dayViolation of this.violations) {
+                    html += `<div class="violation-item">`;
+                    html += `<div class="violation-date">${dayViolation.date}</div>`;
+                    for (const violation of dayViolation.violations) {
+                        html += `<div><strong>${violation.type}:</strong> ${violation.description}</div>`;
+                    }
+                    html += `</div>`;
+                }
+                container.innerHTML = html;
+            }
+
+            displayDailySummary() {
+                const container = document.getElementById('dailySummary');
+                let html = '';
+
+                for (const day of this.logData) {
+                    const status = this.violations.some(v => v.date === day.date) ? 'violation' : 'good';
+                    const statusIcon = status === 'violation' ? '🚨' : '✅';
+                    
+                    html += `
+                        <div class="day-summary">
+                            <div class="day-stat">
+                                <div class="day-stat-value ${status}">${statusIcon}</div>
+                                <div class="day-stat-label">${day.date}</div>
+                            </div>
+                            <div class="day-stat">
+                                <div class="day-stat-value">${day.totalHours.driving.toFixed(1)}h</div>
+                                <div class="day-stat-label">Driving</div>
+                            </div>
+                            <div class="day-stat">
+                                <div class="day-stat-value">${day.totalHours.onDuty.toFixed(1)}h</div>
+                                <div class="day-stat-label">On Duty</div>
+                            </div>
+                            <div class="day-stat">
+                                <div class="day-stat-value">${day.miles}</div>
+                                <div class="day-stat-label">Miles</div>
+                            </div>
+                        </div>
+                    `;
+                }
+                container.innerHTML = html;
+            }
+
+            displayDrivingPatterns() {
+                const container = document.getElementById('drivingPatterns');
+                
+                const avgDriving = this.dailyStats.avgDrivingHours;
+                const avgOnDuty = this.dailyStats.avgOnDutyHours;
+                const avgMiles = this.dailyStats.avgMilesPerDay;
+
+                container.innerHTML = `
+                    <div class="day-summary">
+                        <div class="day-stat">
+                            <div class="day-stat-value">${avgDriving.toFixed(1)}h</div>
+                            <div class="day-stat-label">Avg Driving/Day</div>
+                        </div>
+                        <div class="day-stat">
+                            <div class="day-stat-value">${avgOnDuty.toFixed(1)}h</div>
+                            <div class="day-stat-label">Avg On-Duty/Day</div>
+                        </div>
+                        <div class="day-stat">
+                            <div class="day-stat-value">${avgMiles.toFixed(0)}</div>
+                            <div class="day-stat-label">Avg Miles/Day</div>
+                        </div>
+                        <div class="day-stat">
+                            <div class="day-stat-value">${(avgMiles / avgDriving).toFixed(1)}</div>
+                            <div class="day-stat-label">Miles/Hour</div>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill" style="width: ${(avgDriving / 11) * 100}%"></div>
+                    </div>
+                    <p style="text-align: center; margin-top: 10px;">Average driving time vs 11-hour limit</p>
+                `;
+            }
+
+            displayDetailedTable() {
+                const tbody = document.getElementById('logTableBody');
+                let html = '';
+
+                for (const day of this.logData) {
+                    const hasViolations = this.violations.some(v => v.date === day.date);
+                    const status = hasViolations ? '🚨 Violations' : '✅ Compliant';
+                    const statusClass = hasViolations ? 'violation' : 'good';
+                    
+                    html += `
+                        <tr>
+                            <td>${day.date}</td>
+                            <td>${day.totalHours.driving.toFixed(2)}h</td>
+                            <td>${day.totalHours.onDuty.toFixed(2)}h</td>
+                            <td>${day.miles}</td>
+                            <td>${hasViolations ? this.violations.find(v => v.date === day.date).violations.length : 0}</td>
+                            <td><span class="${statusClass}">${status}</span></td>
+                        </tr>
+                    `;
+                }
+                tbody.innerHTML = html;
+            }
+        }
+
+        // Initialize the analyzer
+        const analyzer = new ELDAnalyzer();
+    </script>
+</body>
+</html>
