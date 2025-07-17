@@ -3,611 +3,709 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELD Driver Log Analyzer</title>
+    <title>ELD Log Parser - Trucking Analytics</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
-        .container { max-width: 1200px; margin: 0 auto; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
-        h1 { text-align: center; color: #2c3e50; margin-bottom: 30px; font-size: 2.5em; background: linear-gradient(45deg, #3498db, #9b59b6); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
-        .upload-section { background: #f8f9fa; padding: 30px; border-radius: 15px; margin-bottom: 30px; border: 2px dashed #dee2e6; text-align: center; transition: all 0.3s ease; }
-        .upload-section:hover { border-color: #3498db; background: #e3f2fd; }
-        .file-input { display: none; }
-        .file-label { display: inline-block; padding: 15px 30px; background: linear-gradient(45deg, #3498db, #2980b9); color: white; border-radius: 50px; cursor: pointer; font-weight: bold; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(52, 152, 219, 0.3); }
-        .file-label:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4); }
-        .analyze-btn { background: linear-gradient(45deg, #e74c3c, #c0392b); color: white; border: none; padding: 15px 40px; border-radius: 50px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3); }
-        .analyze-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4); }
-        .analyze-btn:disabled { background: #bdc3c7; cursor: not-allowed; transform: none; }
-        .results { display: none; animation: fadeIn 0.5s ease-in; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .metric-card { background: white; padding: 25px; border-radius: 15px; text-align: center; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); transition: transform 0.3s ease; }
-        .metric-card:hover { transform: translateY(-5px); }
-        .metric-value { font-size: 2.5em; font-weight: bold; margin-bottom: 10px; }
-        .metric-label { color: #7f8c8d; font-size: 0.9em; text-transform: uppercase; letter-spacing: 1px; }
-        .violation { color: #e74c3c; }
-        .warning { color: #f39c12; }
-        .good { color: #27ae60; }
-        .section { background: white; margin-bottom: 30px; padding: 30px; border-radius: 15px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1); }
-        .section h2 { color: #2c3e50; margin-bottom: 20px; font-size: 1.8em; border-bottom: 3px solid #3498db; padding-bottom: 10px; }
-        .violation-item { background: #fee; border-left: 4px solid #e74c3c; padding: 15px; margin-bottom: 15px; border-radius: 8px; }
-        .violation-date { font-weight: bold; color: #e74c3c; margin-bottom: 5px; }
-        .table-container { overflow-x: auto; border-radius: 10px; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1); }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
-        th { background: linear-gradient(45deg, #3498db, #2980b9); color: white; font-weight: bold; }
-        tr:hover { background: #f8f9fa; }
-        .progress-bar { height: 20px; background: #ecf0f1; border-radius: 10px; overflow: hidden; margin: 10px 0; }
-        .progress-fill { height: 100%; background: linear-gradient(45deg, #3498db, #2980b9); transition: width 0.3s ease; }
-        .chart-container { background: white; padding: 20px; border-radius: 10px; margin-top: 20px; }
-        .day-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 20px; }
-        .day-stat { text-align: center; padding: 15px; background: #f8f9fa; border-radius: 10px; }
-        .day-stat-value { font-size: 1.5em; font-weight: bold; margin-bottom: 5px; }
-        .day-stat-label { color: #7f8c8d; font-size: 0.9em; }
-        .loading { text-align: center; padding: 50px; color: #7f8c8d; }
-        .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-        .debug-section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px; }
-        .debug-text { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 5px; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+
+        .upload-section {
+            padding: 30px;
+            text-align: center;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            overflow: hidden;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 30px;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            font-size: 1.1em;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .file-input-wrapper:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-input-wrapper input[type=file] {
+            position: absolute;
+            left: -9999px;
+        }
+
+        .content {
+            padding: 30px;
+        }
+
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .metric-card {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .metric-card h3 {
+            font-size: 1.2em;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .metric-card .value {
+            font-size: 2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .violations-section {
+            background: #fff5f5;
+            border: 2px solid #fed7d7;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .violations-section h2 {
+            color: #e53e3e;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .violation-item {
+            background: white;
+            border-left: 4px solid #e53e3e;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .suggestions-section {
+            background: #f0fff4;
+            border: 2px solid #c6f6d5;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .suggestions-section h2 {
+            color: #38a169;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .suggestion-item {
+            background: white;
+            border-left: 4px solid #38a169;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .daily-breakdown {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .daily-breakdown h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .day-card {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #007bff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .day-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .day-date {
+            font-weight: bold;
+            font-size: 1.1em;
+            color: #007bff;
+        }
+
+        .day-miles {
+            color: #6c757d;
+            font-size: 0.9em;
+        }
+
+        .time-breakdown {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+
+        .time-item {
+            text-align: center;
+            padding: 8px;
+            background: #f8f9fa;
+            border-radius: 5px;
+        }
+
+        .time-item .label {
+            font-size: 0.8em;
+            color: #6c757d;
+            margin-bottom: 5px;
+        }
+
+        .time-item .value {
+            font-weight: bold;
+            color: #495057;
+        }
+
+        .route-section {
+            background: #fff;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .route-section h2 {
+            color: #495057;
+            margin-bottom: 20px;
+            font-size: 1.5em;
+        }
+
+        .route-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .route-item:last-child {
+            border-bottom: none;
+        }
+
+        .route-time {
+            font-weight: bold;
+            color: #007bff;
+        }
+
+        .route-location {
+            flex: 1;
+            margin: 0 15px;
+        }
+
+        .route-details {
+            font-size: 0.9em;
+            color: #6c757d;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #6c757d;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #007bff;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: #fff5f5;
+            border: 2px solid #fed7d7;
+            color: #e53e3e;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-good { background: #38a169; }
+        .status-warning { background: #ecc94b; }
+        .status-violation { background: #e53e3e; }
+
+        @media (max-width: 768px) {
+            .metrics-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .day-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .time-breakdown {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
     <div class="container">
-        <h1>🚛 ELD Driver Log Analyzer</h1>
-        
+        <div class="header">
+            <h1>🚛 ELD Log Parser</h1>
+            <p>Comprehensive Hours of Service Analysis & Compliance Monitoring</p>
+        </div>
+
         <div class="upload-section">
-            <h3>Upload ELD Log File</h3>
-            <p>Select a <strong>text or PDF file</strong> containing ELD driver logs</p>
-            <input type="file" id="fileInput" class="file-input" accept=".txt,.log,.pdf">
-            <label for="fileInput" class="file-label">Choose File</label>
-            <div id="fileName" style="margin-top: 10px; color: #7f8c8d;"></div>
-            <button id="analyzeBtn" class="analyze-btn" disabled>Analyze Logs</button>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" accept=".txt,.log,.pdf" />
+                📁 Upload ELD Log File
+            </div>
+            <p style="margin-top: 15px; color: #6c757d;">
+                Upload your ELD log file to analyze hours of service, violations, and get improvement suggestions
+            </p>
         </div>
 
-        <div id="loading" class="loading" style="display: none;">
-            <div class="spinner"></div>
-            <p>Analyzing driver logs...</p>
-        </div>
-
-        <div id="results" class="results">
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <div id="totalDays" class="metric-value">0</div>
-                    <div class="metric-label">Days Analyzed</div>
-                </div>
-                <div class="metric-card">
-                    <div id="totalMiles" class="metric-value">0</div>
-                    <div class="metric-label">Total Miles</div>
-                </div>
-                <div class="metric-card">
-                    <div id="totalViolations" class="metric-value violation">0</div>
-                    <div class="metric-label">HOS Violations</div>
-                </div>
-                <div class="metric-card">
-                    <div id="avgDailyMiles" class="metric-value">0</div>
-                    <div class="metric-label">Avg Daily Miles</div>
-                </div>
-            </div>
-
-            <div class="section">
-                <h2>🚨 Hours of Service Violations</h2>
-                <div id="violationsList"></div>
-            </div>
-
-            <div class="section">
-                <h2>📊 Daily Summary</h2>
-                <div id="dailySummary"></div>
-            </div>
-
-            <div class="section">
-                <h2>🕐 Driving Patterns</h2>
-                <div id="drivingPatterns"></div>
-            </div>
-
-            <div class="section">
-                <h2>📈 Detailed Log Analysis</h2>
-                <div class="table-container">
-                    <table id="logTable">
-                        <thead>
-                            <tr>
-                                <th>Date</th>
-                                <th>Total Drive Time</th>
-                                <th>On Duty Time</th>
-                                <th>Miles</th>
-                                <th>Violations</th>
-                                <th>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="logTableBody"></tbody>
-                    </table>
-                </div>
-            </div>
-
-            <div class="section">
-                <h2>🔍 Debug Information</h2>
-                <div class="debug-section">
-                    <h4>Extracted Text Preview:</h4>
-                    <div id="debugText" class="debug-text"></div>
-                </div>
+        <div class="content" id="content">
+            <div class="loading" style="display: none;" id="loading">
+                <div class="spinner"></div>
+                <p>Analyzing your ELD logs...</p>
             </div>
         </div>
     </div>
 
     <script>
-        class ELDAnalyzer {
-            constructor() {
-                this.logData = [];
-                this.violations = [];
-                this.dailyStats = {};
-                this.bindEvents();
+        document.getElementById('fileInput').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                processFile(file);
             }
+        });
 
-            bindEvents() {
-                document.getElementById('fileInput').addEventListener('change', this.handleFileSelect.bind(this));
-                document.getElementById('analyzeBtn').addEventListener('click', this.analyzeData.bind(this));
-            }
+        function processFile(file) {
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('content').innerHTML = '<div class="loading" id="loading"><div class="spinner"></div><p>Analyzing your ELD logs...</p></div>';
 
-            handleFileSelect(event) {
-                const file = event.target.files[0];
-                if (file) {
-                    document.getElementById('fileName').textContent = file.name;
-                    document.getElementById('analyzeBtn').disabled = false;
-                    this.file = file;
-                }
-            }
-
-            async analyzeData() {
-                if (!this.file) return;
-
-                document.getElementById('loading').style.display = 'block';
-                document.getElementById('results').style.display = 'none';
-
+            const reader = new FileReader();
+            reader.onload = function(e) {
                 try {
-                    const text = await this.readFile(this.file);
-                    console.log('Extracted text:', text.substring(0, 1000));
-                    
-                    // Show debug information
-                    document.getElementById('debugText').textContent = text.substring(0, 1000) + '...';
-                    
-                    this.parseLogData(text);
-                    this.calculateViolations();
-                    this.generateDailyStats();
-                    this.displayResults();
+                    const content = e.target.result;
+                    const parsedData = parseELDLog(content);
+                    displayResults(parsedData);
                 } catch (error) {
-                    console.error('Error analyzing data:', error);
-                    alert('Error analyzing the log file. Please check the file format.');
-                } finally {
-                    document.getElementById('loading').style.display = 'none';
+                    displayError('Error parsing file: ' + error.message);
                 }
-            }
+            };
+            reader.readAsText(file);
+        }
 
-            async readFile(file) {
-                return new Promise((resolve, reject) => {
-                    if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
-                        const reader = new FileReader();
-                        reader.onload = async (e) => {
-                            try {
-                                const typedarray = new Uint8Array(e.target.result);
-                                const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
-                                let textContent = '';
-                                
-                                for (let i = 1; i <= pdf.numPages; i++) {
-                                    const page = await pdf.getPage(i);
-                                    const txt = await page.getTextContent();
-                                    
-                                    // Better text extraction - preserve line breaks and spacing
-                                    let pageText = '';
-                                    let lastY = null;
-                                    
-                                    for (let j = 0; j < txt.items.length; j++) {
-                                        const item = txt.items[j];
-                                        
-                                        // Add line break if Y position changed significantly
-                                        if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
-                                            pageText += '\n';
-                                        }
-                                        
-                                        pageText += item.str;
-                                        
-                                        // Add space if the next item is far away horizontally
-                                        if (j < txt.items.length - 1) {
-                                            const nextItem = txt.items[j + 1];
-                                            if (Math.abs(item.transform[4] + item.width - nextItem.transform[4]) > 5) {
-                                                pageText += ' ';
-                                            }
-                                        }
-                                        
-                                        lastY = item.transform[5];
-                                    }
-                                    
-                                    textContent += pageText + '\n';
-                                }
-                                
-                                resolve(textContent);
-                            } catch (err) {
-                                reject(err);
-                            }
-                        };
-                        reader.onerror = reject;
-                        reader.readAsArrayBuffer(file);
-                    } else {
-                        const reader = new FileReader();
-                        reader.onload = e => resolve(e.target.result);
-                        reader.onerror = reject;
-                        reader.readAsText(file);
+        function parseELDLog(content) {
+            const lines = content.split('\n');
+            const days = [];
+            let currentDay = null;
+            let allEvents = [];
+
+            for (let i = 0; i < lines.length; i++) {
+                const line = lines[i].trim();
+                
+                if (line.startsWith('Record Date')) {
+                    if (currentDay) {
+                        days.push(currentDay);
                     }
-                });
-            }
-
-            parseLogData(text) {
-                const lines = text.split('\n');
-                this.logData = [];
-                let currentDay = null;
-
-                console.log('Parsing', lines.length, 'lines');
-
-                for (let i = 0; i < lines.length; i++) {
-                    const line = lines[i].trim();
-                    if (!line) continue;
-
-                    console.log('Processing line:', line);
-
-                    // Look for date patterns - more flexible matching
-                    const datePatterns = [
-                        /Record\s+Date[:\s]*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
-                        /Date[:\s]*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
-                        /(\d{2}[-\/]\d{2}[-\/]\d{4})/,
-                        /(\d{4}[-\/]\d{2}[-\/]\d{2})/
-                    ];
-
-                    let dateMatch = null;
-                    for (const pattern of datePatterns) {
-                        dateMatch = line.match(pattern);
-                        if (dateMatch) break;
-                    }
-
+                    
+                    const dateMatch = line.match(/Record Date\s+USDOT.*?(\d{2}-\w{3}-\d{2})/);
                     if (dateMatch) {
-                        if (currentDay && currentDay.date) {
-                            this.logData.push(currentDay);
-                        }
-                        
                         currentDay = {
                             date: dateMatch[1],
                             events: [],
-                            totalHours: {
-                                offDuty: 0,
-                                sleeperBerth: 0,
-                                driving: 0,
-                                onDuty: 0
-                            },
+                            totalHours: { offDuty: 0, sleeper: 0, driving: 0, onDuty: 0 },
                             miles: 0,
                             startOdometer: 0,
-                            endOdometer: 0
+                            endOdometer: 0,
+                            violations: []
                         };
-                        console.log('Found date:', dateMatch[1]);
-                        continue;
-                    }
-
-                    if (!currentDay) continue;
-
-                    // Look for odometer data - more flexible patterns
-                    const odometerPatterns = [
-                        /odometer[:\s]*(\d+)[-\s]*(\d+)/i,
-                        /(\d+)\s*[-–]\s*(\d+)\s*miles?/i,
-                        /start[:\s]*(\d+).*end[:\s]*(\d+)/i
-                    ];
-
-                    for (const pattern of odometerPatterns) {
-                        const match = line.match(pattern);
-                        if (match) {
-                            currentDay.startOdometer = parseInt(match[1]);
-                            currentDay.endOdometer = parseInt(match[2]);
-                            currentDay.miles = currentDay.endOdometer - currentDay.startOdometer;
-                            console.log('Found odometer:', match[1], '-', match[2], 'Miles:', currentDay.miles);
-                            break;
-                        }
-                    }
-
-                    // Look for time entries - more flexible patterns
-                    const timePatterns = [
-                        /(\d{1,2}):(\d{2}):(\d{2})\s+(.+?)\s+(\d+)\s+(\d+\.?\d*)\s+(\w+)/,
-                        /(\d{1,2}):(\d{2})\s+(.+?)\s+(\w+)/,
-                        /(\d{1,2}):(\d{2}):(\d{2})\s+(\w+)/
-                    ];
-
-                    for (const pattern of timePatterns) {
-                        const match = line.match(pattern);
-                        if (match) {
-                            currentDay.events.push({
-                                time: match[1] + ':' + match[2] + (match[3] ? ':' + match[3] : ':00'),
-                                location: match[4] || 'Unknown',
-                                odometer: match[5] ? parseInt(match[5]) : 0,
-                                engineHours: match[6] ? parseFloat(match[6]) : 0,
-                                status: match[7] || match[4] || 'Unknown',
-                                fullLine: line
-                            });
-                            break;
-                        }
-                    }
-
-                    // Look for daily totals - more flexible patterns
-                    const hourPatterns = [
-                        /(\d{1,2}):(\d{2}):(\d{2})/g,
-                        /(\d{1,2}):(\d{2})/g
-                    ];
-
-                    for (const pattern of hourPatterns) {
-                        const matches = [...line.matchAll(pattern)];
-                        if (matches.length >= 4) {
-                            currentDay.totalHours.offDuty = this.parseTimeToHours(matches[0][0]);
-                            currentDay.totalHours.sleeperBerth = this.parseTimeToHours(matches[1][0]);
-                            currentDay.totalHours.driving = this.parseTimeToHours(matches[2][0]);
-                            currentDay.totalHours.onDuty = this.parseTimeToHours(matches[3][0]);
-                            console.log('Found daily totals:', currentDay.totalHours);
-                            break;
-                        }
-                    }
-
-                    // Alternative: look for specific status keywords and try to extract hours
-                    const statusHours = {
-                        'off duty': 0,
-                        'sleeper berth': 0,
-                        'driving': 0,
-                        'on duty': 0
-                    };
-
-                    for (const [status, _] of Object.entries(statusHours)) {
-                        const statusRegex = new RegExp(status + '[:\\s]*([\\d\\.]+)\\s*h', 'i');
-                        const match = line.match(statusRegex);
-                        if (match) {
-                            const hours = parseFloat(match[1]);
-                            switch (status) {
-                                case 'off duty':
-                                    currentDay.totalHours.offDuty = hours;
-                                    break;
-                                case 'sleeper berth':
-                                    currentDay.totalHours.sleeperBerth = hours;
-                                    break;
-                                case 'driving':
-                                    currentDay.totalHours.driving = hours;
-                                    break;
-                                case 'on duty':
-                                    currentDay.totalHours.onDuty = hours;
-                                    break;
-                            }
-                        }
                     }
                 }
-
-                // Don't forget the last day
-                if (currentDay && currentDay.date) {
-                    this.logData.push(currentDay);
-                }
-
-                console.log('Parsed', this.logData.length, 'days of data');
-                console.log('Sample data:', this.logData[0]);
-            }
-
-            parseTimeToHours(timeString) {
-                if (!timeString) return 0;
                 
-                const parts = timeString.split(':');
-                let hours = 0;
+                if (line.match(/^\d{2}:\d{2}:\d{2}/) && currentDay) {
+                    const parts = line.split(/\s+/);
+                    if (parts.length >= 4) {
+                        const event = {
+                            time: parts[0],
+                            location: parts.slice(1, -2).join(' '),
+                            odometer: parseInt(parts[parts.length - 2]) || 0,
+                            engineHours: parseFloat(parts[parts.length - 1]) || 0,
+                            status: getStatusFromLine(line),
+                            activity: getActivityFromLine(line)
+                        };
+                        
+                        currentDay.events.push(event);
+                        allEvents.push({ ...event, date: currentDay.date });
+                    }
+                }
                 
-                if (parts.length >= 1) hours += parseInt(parts[0]) || 0;
-                if (parts.length >= 2) hours += (parseInt(parts[1]) || 0) / 60;
-                if (parts.length >= 3) hours += (parseInt(parts[2]) || 0) / 3600;
+                if (line.includes('Miles Today') && currentDay) {
+                    const milesMatch = line.match(/(\d+)/);
+                    if (milesMatch) {
+                        currentDay.miles = parseInt(milesMatch[1]);
+                    }
+                }
                 
-                return hours;
-            }
-
-            calculateViolations() {
-                this.violations = [];
-
-                for (const day of this.logData) {
-                    const violations = [];
-
-                    // 11-hour driving limit
-                    if (day.totalHours.driving > 11) {
-                        violations.push({
-                            type: 'Driving Time Violation',
-                            description: `Exceeded 11-hour driving limit: ${day.totalHours.driving.toFixed(2)} hours`,
-                            severity: 'Critical'
-                        });
-                    }
-
-                    // 14-hour on-duty limit
-                    const totalOnDuty = day.totalHours.driving + day.totalHours.onDuty;
-                    if (totalOnDuty > 14) {
-                        violations.push({
-                            type: '14-Hour Rule Violation',
-                            description: `Exceeded 14-hour on-duty limit: ${totalOnDuty.toFixed(2)} hours`,
-                            severity: 'Critical'
-                        });
-                    }
-
-                    // 10-hour rest requirement
-                    const totalRest = day.totalHours.offDuty + day.totalHours.sleeperBerth;
-                    if (totalRest < 10) {
-                        violations.push({
-                            type: 'Insufficient Rest',
-                            description: `Less than 10 hours of rest: ${totalRest.toFixed(2)} hours`,
-                            severity: 'Warning'
-                        });
-                    }
-
-                    if (violations.length > 0) {
-                        this.violations.push({
-                            date: day.date,
-                            violations
-                        });
+                if (line.includes('Start-End Odometer') && currentDay) {
+                    const odometerMatch = line.match(/(\d+)-(\d+)/);
+                    if (odometerMatch) {
+                        currentDay.startOdometer = parseInt(odometerMatch[1]);
+                        currentDay.endOdometer = parseInt(odometerMatch[2]);
                     }
                 }
-            }
-
-            generateDailyStats() {
-                if (this.logData.length === 0) {
-                    this.dailyStats = {
-                        totalDays: 0,
-                        totalMiles: 0,
-                        totalViolations: 0,
-                        avgDrivingHours: 0,
-                        avgOnDutyHours: 0,
-                        avgMilesPerDay: 0
-                    };
-                    return;
-                }
-
-                const totalMiles = this.logData.reduce((sum, day) => sum + (day.miles || 0), 0);
-                const totalDriving = this.logData.reduce((sum, day) => sum + (day.totalHours.driving || 0), 0);
-                const totalOnDuty = this.logData.reduce((sum, day) => sum + (day.totalHours.onDuty || 0), 0);
-
-                this.dailyStats = {
-                    totalDays: this.logData.length,
-                    totalMiles: totalMiles,
-                    totalViolations: this.violations.length,
-                    avgDrivingHours: totalDriving / this.logData.length,
-                    avgOnDutyHours: totalOnDuty / this.logData.length,
-                    avgMilesPerDay: totalMiles / this.logData.length
-                };
-            }
-
-            displayResults() {
-                // Update metrics
-                document.getElementById('totalDays').textContent = this.dailyStats.totalDays;
-                document.getElementById('totalMiles').textContent = this.dailyStats.totalMiles.toLocaleString();
-                document.getElementById('totalViolations').textContent = this.dailyStats.totalViolations;
-                document.getElementById('avgDailyMiles').textContent = Math.round(this.dailyStats.avgMilesPerDay || 0);
-
-                // Display violations
-                this.displayViolations();
-
-                // Display daily summary
-                this.displayDailySummary();
-
-                // Display driving patterns
-                this.displayDrivingPatterns();
-
-                // Display detailed table
-                this.displayDetailedTable();
-
-                document.getElementById('results').style.display = 'block';
-            }
-
-            displayViolations() {
-                const container = document.getElementById('violationsList');
                 
-                if (this.violations.length === 0) {
-                    container.innerHTML = '<p style="color: #27ae60; font-weight: bold;">✅ No violations detected</p>';
-                    return;
-                }
-
-                let html = '';
-                for (const dayViolation of this.violations) {
-                    html += `<div class="violation-item">`;
-                    html += `<div class="violation-date">${dayViolation.date}</div>`;
-                    for (const violation of dayViolation.violations) {
-                        html += `<div><strong>${violation.type}:</strong> ${violation.description}</div>`;
-                    }
-                    html += `</div>`;
-                }
-                container.innerHTML = html;
-            }
-
-            displayDailySummary() {
-                const container = document.getElementById('dailySummary');
-                let html = '';
-
-                for (const day of this.logData) {
-                    const hasViolations = this.violations.some(v => v.date === day.date);
-                    const statusIcon = hasViolations ? '🚨' : '✅';
-                    const statusClass = hasViolations ? 'violation' : 'good';
+                if (line.includes('TOTAL HOURS') && i + 4 < lines.length) {
+                    const offDutyMatch = lines[i + 1].match(/(\d{2}:\d{2}:\d{2})/);
+                    const sleeperMatch = lines[i + 2].match(/(\d{2}:\d{2}:\d{2})/);
+                    const drivingMatch = lines[i + 3].match(/(\d{2}:\d{2}:\d{2})/);
+                    const onDutyMatch = lines[i + 4].match(/(\d{2}:\d{2}:\d{2})/);
                     
-                    html += `
-                        <div class="day-summary">
-                            <div class="day-stat">
-                                <div class="day-stat-value ${statusClass}">${statusIcon}</div>
-                                <div class="day-stat-label">${day.date}</div>
-                            </div>
-                            <div class="day-stat">
-                                <div class="day-stat-value">${(day.totalHours.driving || 0).toFixed(1)}h</div>
-                                <div class="day-stat-label">Driving</div>
-                            </div>
-                            <div class="day-stat">
-                                <div class="day-stat-value">${(day.totalHours.onDuty || 0).toFixed(1)}h</div>
-                                <div class="day-stat-label">On Duty</div>
-                            </div>
-                            <div class="day-stat">
-                                <div class="day-stat-value">${day.miles || 0}</div>
-                                <div class="day-stat-label">Miles</div>
-                            </div>
-                        </div>
-                    `;
+                    if (currentDay && offDutyMatch) {
+                        currentDay.totalHours.offDuty = timeToHours(offDutyMatch[1]);
+                        currentDay.totalHours.sleeper = sleeperMatch ? timeToHours(sleeperMatch[1]) : 0;
+                        currentDay.totalHours.driving = drivingMatch ? timeToHours(drivingMatch[1]) : 0;
+                        currentDay.totalHours.onDuty = onDutyMatch ? timeToHours(onDutyMatch[1]) : 0;
+                    }
                 }
-                container.innerHTML = html;
+            }
+            
+            if (currentDay) {
+                days.push(currentDay);
             }
 
-            displayDrivingPatterns() {
-                const container = document.getElementById('drivingPatterns');
-                
-                const avgDriving = this.dailyStats.avgDrivingHours || 0;
-                const avgOnDuty = this.dailyStats.avgOnDutyHours || 0;
-                const avgMiles = this.dailyStats.avgMilesPerDay || 0;
-                const milesPerHour = avgDriving > 0 ? avgMiles / avgDriving : 0;
-
-                container.innerHTML = `
-                    <div class="day-summary">
-                        <div class="day-stat">
-                            <div class="day-stat-value">${avgDriving.toFixed(1)}h</div>
-                            <div class="day-stat-label">Avg Driving/Day</div>
-                        </div>
-                        <div class="day-stat">
-                            <div class="day-stat-value">${avgOnDuty.toFixed(1)}h</div>
-                            <div class="day-stat-label">Avg On-Duty/Day</div>
-                        </div>
-                        <div class="day-stat">
-                            <div class="day-stat-value">${avgMiles.toFixed(0)}</div>
-                            <div class="day-stat-label">Avg Miles/Day</div>
-                        </div>
-                        <div class="day-stat">
-                            <div class="day-stat-value">${milesPerHour.toFixed(1)}</div>
-                            <div class="day-stat-label">Miles/Hour</div>
-                        </div>
-                    </div>
-                    <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${Math.min((avgDriving / 11) * 100, 100)}%"></div>
-                    </div>
-                    <p style="text-align: center; margin-top: 10px;">Average driving time vs 11-hour limit</p>
-                `;
-            }
-
-            displayDetailedTable() {
-                const tbody = document.getElementById('logTableBody');
-                let html = '';
-
-                for (const day of this.logData) {
-                    const hasViolations = this.violations.some(v => v.date === day.date);
-                    const status = hasViolations ? '🚨 Violations' : '✅ Compliant';
-                    const statusClass = hasViolations ? 'violation' : 'good';
-                    const violationCount = hasViolations ? this.violations.find(v => v.date === day.date).violations.length : 0;
-                    
-                    html += `
-                        <tr>
-                            <td>${day.date}</td>
-                            <td>${(day.totalHours.driving || 0).toFixed(2)}h</td>
-                            <td>${(day.totalHours.onDuty || 0).toFixed(2)}h</td>
-                            <td>${day.miles || 0}</td>
-                            <td>${violationCount}</td>
-                            <td><span class="${statusClass}">${status}</span></td>
-                        </tr>
-                    `;
-                }
-                tbody.innerHTML = html;
-            }
+            return {
+                days: days,
+                allEvents: allEvents,
+                driverInfo: extractDriverInfo(content),
+                violations: detectViolations(days),
+                suggestions: generateSuggestions(days)
+            };
         }
 
-        // Initialize the analyzer
-        const analyzer = new ELDAnalyzer();
+        function getStatusFromLine(line) {
+            if (line.includes('Driving')) return 'Driving';
+            if (line.includes('SB')) return 'Sleeper Berth';
+            if (line.includes('ODND')) return 'On Duty Not Driving';
+            if (line.includes('OFF')) return 'Off Duty';
+            return 'Unknown';
+        }
+
+        function getActivityFromLine(line) {
+            if (line.includes('Pre-Trip')) return 'Pre-Trip Inspection';
+            if (line.includes('Post-Trip')) return 'Post-Trip Inspection';
+            if (line.includes('Fueling')) return 'Fueling';
+            if (line.includes('Load')) return 'Loading/Unloading';
+            if (line.includes('Meal Break')) return 'Meal Break';
+            if (line.includes('DOT Break')) return 'DOT Break';
+            return '';
+        }
+
+        function timeToHours(timeStr) {
+            const parts = timeStr.split(':');
+            return parseInt(parts[0]) + parseInt(parts[1]) / 60 + parseInt(parts[2]) / 3600;
+        }
+
+        function extractDriverInfo(content) {
+            const driverMatch = content.match(/Driver Name\s+([^\s]+),\s+([^\s]+)/);
+            const dotMatch = content.match(/USDOT #\s+(\d+)/);
+            const licenseMatch = content.match(/Driver License Number\s+(\d+)/);
+            
+            return {
+                name: driverMatch ? `${driverMatch[2]} ${driverMatch[1]}` : 'Unknown',
+                dotNumber: dotMatch ? dotMatch[1] : 'Unknown',
+                licenseNumber: licenseMatch ? licenseMatch[1] : 'Unknown'
+            };
+        }
+
+        function detectViolations(days) {
+            const violations = [];
+            
+            days.forEach(day => {
+                const totalOnDuty = day.totalHours.driving + day.totalHours.onDuty;
+                
+                if (day.totalHours.driving > 11) {
+                    violations.push({
+                        date: day.date,
+                        type: 'Driving Time Violation',
+                        description: `Drove ${day.totalHours.driving.toFixed(1)} hours (limit: 11 hours)`,
+                        severity: 'Critical'
+                    });
+                }
+                
+                if (totalOnDuty > 14) {
+                    violations.push({
+                        date: day.date,
+                        type: '14-Hour Rule Violation',
+                        description: `On duty for ${totalOnDuty.toFixed(1)} hours (limit: 14 hours)`,
+                        severity: 'Critical'
+                    });
+                }
+                
+                if (day.totalHours.driving > 0 && day.totalHours.sleeper < 10) {
+                    violations.push({
+                        date: day.date,
+                        type: '10-Hour Rest Violation',
+                        description: `Only ${day.totalHours.sleeper.toFixed(1)} hours of rest (minimum: 10 hours)`,
+                        severity: 'Warning'
+                    });
+                }
+            });
+            
+            return violations;
+        }
+
+        function generateSuggestions(days) {
+            const suggestions = [];
+            
+            days.forEach(day => {
+                const totalOnDuty = day.totalHours.driving + day.totalHours.onDuty;
+                
+                if (day.totalHours.driving > 9) {
+                    suggestions.push({
+                        date: day.date,
+                        type: 'Driving Time Management',
+                        description: `Consider planning shorter drives. You drove ${day.totalHours.driving.toFixed(1)} hours today.`,
+                        priority: 'High'
+                    });
+                }
+                
+                if (totalOnDuty > 12) {
+                    suggestions.push({
+                        date: day.date,
+                        type: '14-Hour Rule Management',
+                        description: `Plan for adequate rest breaks. You were on duty for ${totalOnDuty.toFixed(1)} hours.`,
+                        priority: 'High'
+                    });
+                }
+                
+                if (day.miles > 0 && day.totalHours.driving > 0) {
+                    const avgSpeed = day.miles / day.totalHours.driving;
+                    if (avgSpeed > 65) {
+                        suggestions.push({
+                            date: day.date,
+                            type: 'Speed Management',
+                            description: `Average speed was ${avgSpeed.toFixed(1)} mph. Consider reducing speed for better fuel efficiency.`,
+                            priority: 'Medium'
+                        });
+                    }
+                }
+            });
+            
+            return suggestions;
+        }
+
+        function displayResults(data) {
+            const content = document.getElementById('content');
+            const totalMiles = data.days.reduce((sum, day) => sum + day.miles, 0);
+            const totalDrivingHours = data.days.reduce((sum, day) => sum + day.totalHours.driving, 0);
+            const avgMilesPerDay = totalMiles / data.days.length;
+            const avgDrivingHours = totalDrivingHours / data.days.length;
+            const violationCount = data.violations.length;
+            const fuelEfficiency = totalDrivingHours > 0 ? (totalMiles / totalDrivingHours).toFixed(1) : 0;
+
+            content.innerHTML = `
+                <div class="metrics-grid">
+                    <div class="metric-card">
+                        <h3>Total Miles</h3>
+                        <div class="value">${totalMiles.toLocaleString()}</div>
+                        <div>${data.days.length} days</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Total Driving Hours</h3>
+                        <div class="value">${totalDrivingHours.toFixed(1)}</div>
+                        <div>Avg: ${avgDrivingHours.toFixed(1)}h/day</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>Average Speed</h3>
+                        <div class="value">${fuelEfficiency}</div>
+                        <div>miles per hour</div>
+                    </div>
+                    <div class="metric-card">
+                        <h3>HOS Violations</h3>
+                        <div class="value">${violationCount}</div>
+                        <div>${violationCount === 0 ? 'Compliant' : 'Needs Attention'}</div>
+                    </div>
+                </div>
+
+                ${data.violations.length > 0 ? `
+                <div class="violations-section">
+                    <h2>⚠️ Hours of Service Violations</h2>
+                    ${data.violations.map(violation => `
+                        <div class="violation-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${violation.type}</strong>
+                                    <div style="margin-top: 5px;">${violation.description}</div>
+                                </div>
+                                <div>
+                                    <span class="status-indicator ${violation.severity === 'Critical' ? 'status-violation' : 'status-warning'}"></span>
+                                    <small>${violation.date}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+
+                ${data.suggestions.length > 0 ? `
+                <div class="suggestions-section">
+                    <h2>💡 Improvement Suggestions</h2>
+                    ${data.suggestions.map(suggestion => `
+                        <div class="suggestion-item">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <div>
+                                    <strong>${suggestion.type}</strong>
+                                    <div style="margin-top: 5px;">${suggestion.description}</div>
+                                </div>
+                                <div>
+                                    <span class="status-indicator ${suggestion.priority === 'High' ? 'status-warning' : 'status-good'}"></span>
+                                    <small>${suggestion.date}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+                ` : ''}
+
+                <div class="daily-breakdown">
+                    <h2>📅 Daily Breakdown</h2>
+                    ${data.days.map(day => `
+                        <div class="day-card">
+                            <div class="day-header">
+                                <div class="day-date">${day.date}</div>
+                                <div class="day-miles">${day.miles} miles</div>
+                            </div>
+                            <div class="time-breakdown">
+                                <div class="time-item">
+                                    <div class="label">Off Duty</div>
+                                    <div class="value">${day.totalHours.offDuty.toFixed(1)}h</div>
+                                </div>
+                                <div class="time-item">
+                                    <div class="label">Sleeper</div>
+                                    <div class="value">${day.totalHours.sleeper.toFixed(1)}h</div>
+                                </div>
+                                <div class="time-item">
+                                    <div class="label">Driving</div>
+                                    <div class="value">${day.totalHours.driving.toFixed(1)}h</div>
+                                </div>
+                                <div class="time-item">
+                                    <div class="label">On Duty</div>
+                                    <div class="value">${day.totalHours.onDuty.toFixed(1)}h</div>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('')}
+                </div>
+
+                <div class="route-section">
+                    <h2>🗺️ Route Details</h2>
+                    ${data.days.map(day => `
+                        <div style="margin-bottom: 20px;">
+                            <h3 style="color: #007bff; margin-bottom: 10px;">${day.date}</h3>
+                            ${day.events.slice(0, 10).map(event => `
+                                <div class="route-item">
+                                    <div class="route-time">${event.time}</div>
+                                    <div class="route-location">${event.location}</div>
+                                    <div class="route-details">
+                                        ${event.status}${event.activity ? ` - ${event.activity}` : ''}
+                                        <br><small>Odometer: ${event.odometer.toLocaleString()}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                            ${day.events.length > 10 ? `<div style="text-align: center; padding: 10px; color: #6c757d;">... and ${day.events.length - 10} more events</div>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        function displayError(message) {
+            document.getElementById('content').innerHTML = `
+                <div class="error">
+                    <h2>❌ Error</h2>
+                    <p>${message}</p>
+                    <p>Please make sure you're uploading a valid ELD log file.</p>
+                </div>
+            `;
+        }
     </script>
 </body>
 </html>
