@@ -51,6 +51,76 @@
             border-bottom: 1px solid #eee;
         }
 
+        .input-group {
+            margin: 1rem 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .input-group input {
+            padding: 0.5rem 1rem;
+            border: 2px solid #ddd;
+            border-radius: 25px;
+            font-size: 1rem;
+            width: 120px;
+            text-align: center;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .efficiency-section {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 2rem;
+            margin: 2rem 0;
+            border-left: 4px solid #667eea;
+        }
+
+        .efficiency-section h3 {
+            color: #333;
+            margin-bottom: 1.5rem;
+            font-size: 1.4rem;
+        }
+
+        .efficiency-tips {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+
+        .efficiency-tip {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .efficiency-tip h4 {
+            color: #667eea;
+            margin-bottom: 0.5rem;
+            font-size: 1.1rem;
+        }
+
+        .efficiency-tip p {
+            color: #666;
+            line-height: 1.6;
+        }
+
+        .efficiency-icon {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+        }
+
         .upload-area {
             border: 3px dashed #ddd;
             border-radius: 15px;
@@ -285,6 +355,11 @@
 
         <div class="upload-section">
             <h2>Upload ELD Log Files</h2>
+            <div class="input-group">
+                <label for="payRate">Pay Rate:</label>
+                <input type="number" id="payRate" value="50" min="1" max="500" step="1">
+                <span>cents per mile</span>
+            </div>
             <div class="upload-area" id="uploadArea">
                 <div class="upload-icon">📁</div>
                 <h3>Drag & Drop ELD Files Here</h3>
@@ -336,6 +411,52 @@
                         <!-- Daily hours will be populated here -->
                     </tbody>
                 </table>
+            </div>
+
+            <div class="efficiency-section">
+                <h3>💡 Tips to Increase Your Efficiency</h3>
+                <div class="efficiency-tips">
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">⚡</div>
+                        <h4>Optimize Your Speed</h4>
+                        <p>Maintain 60-65 mph for best fuel economy. Every 5 mph over 60 reduces efficiency by 7-14%. Your current average speed is <span id="currentSpeed">0</span> mph.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">🛣️</div>
+                        <h4>Route Planning</h4>
+                        <p>Plan routes to minimize traffic delays and avoid construction zones. Use apps like Google Maps or Waze to find the most efficient paths and save driving time.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">⏰</div>
+                        <h4>Maximize Drive Time</h4>
+                        <p>Your time utilization is <span id="currentUtilization">0</span>%. Aim to drive during optimal traffic hours and minimize on-duty non-driving time by pre-planning stops.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">⛽</div>
+                        <h4>Fuel Management</h4>
+                        <p>Plan fuel stops at cheaper stations along your route. Use apps like GasBuddy to find the best diesel prices. You're currently using an estimated <span id="currentFuel">0</span> gallons.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">🎯</div>
+                        <h4>Consistent Daily Miles</h4>
+                        <p>Your average is <span id="currentAvgMiles">0</span> miles/day. Aim for consistent daily miles to maximize weekly earnings while staying compliant with HOS regulations.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">😴</div>
+                        <h4>Rest Quality</h4>
+                        <p>Your rest efficiency is <span id="currentRestEfficiency">0</span>%. Quality rest improves alertness and decision-making. Use sleeper berth time effectively to reset your 14-hour clock.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">📱</div>
+                        <h4>Technology Use</h4>
+                        <p>Use ELD apps for real-time HOS tracking, load boards for backhauls, and maintenance apps to prevent costly breakdowns that reduce your earning potential.</p>
+                    </div>
+                    <div class="efficiency-tip">
+                        <div class="efficiency-icon">🚛</div>
+                        <h4>Vehicle Maintenance</h4>
+                        <p>Keep your truck well-maintained. Proper tire pressure, regular oil changes, and clean air filters can improve fuel economy by 10-15% and reduce downtime.</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -534,6 +655,8 @@
         }
 
         function calculateMetrics(data) {
+            const payRate = parseFloat(document.getElementById('payRate').value) / 100; // Convert cents to dollars
+            
             const totalMiles = data.reduce((sum, day) => sum + day.totalMiles, 0);
             const totalDriveHours = data.reduce((sum, day) => sum + parseTimeToHours(day.driveTime), 0);
             const totalOnDutyHours = data.reduce((sum, day) => sum + parseTimeToHours(day.onDutyTime), 0);
@@ -546,8 +669,8 @@
             // Calculate fuel efficiency estimate (assuming 6.5 mpg average)
             const estimatedFuelUsed = totalMiles / 6.5;
             
-            // Calculate earnings estimate (assuming $0.50 per mile)
-            const estimatedEarnings = totalMiles * 0.50;
+            // Calculate earnings estimate using user input
+            const estimatedEarnings = totalMiles * payRate;
             
             // Calculate time utilization
             const totalHours = data.length * 24;
@@ -674,6 +797,13 @@
                     </tr>
                 `;
             }).join('');
+
+            // Update efficiency tips with current data
+            document.getElementById('currentSpeed').textContent = metrics.averageSpeed;
+            document.getElementById('currentUtilization').textContent = metrics.timeUtilization;
+            document.getElementById('currentFuel').textContent = metrics.estimatedFuelUsed;
+            document.getElementById('currentAvgMiles').textContent = metrics.averageMiles;
+            document.getElementById('currentRestEfficiency').textContent = metrics.restEfficiency;
         }
     </script>
 </body>
