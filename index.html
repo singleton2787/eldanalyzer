@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELD Log Parser - Trucking Analytics</title>
+    <title>ELD Log Parser - Last 7 Days Trucking Analytics</title>
     <style>
         * {
             margin: 0;
@@ -82,6 +82,21 @@
 
         .content {
             padding: 30px;
+        }
+
+        .date-range-info {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 30px;
+            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
+        }
+
+        .date-range-info h2 {
+            font-size: 1.5em;
+            margin-bottom: 5px;
         }
 
         .metrics-grid {
@@ -320,6 +335,44 @@
             font-size: 0.9em;
         }
 
+        .weekly-summary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            margin-bottom: 30px;
+        }
+
+        .weekly-summary h2 {
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+
+        .weekly-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+
+        .weekly-stat {
+            background: rgba(255,255,255,0.1);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .weekly-stat .stat-value {
+            font-size: 1.5em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .weekly-stat .stat-label {
+            font-size: 0.9em;
+            opacity: 0.9;
+        }
+
         @media (max-width: 768px) {
             .metrics-grid {
                 grid-template-columns: 1fr;
@@ -340,7 +393,7 @@
     <div class="container">
         <div class="header">
             <h1>🚛 ELD Log Parser</h1>
-            <p>Comprehensive Hours of Service Analysis & Compliance Monitoring</p>
+            <p>Last 7 Days Hours of Service Analysis & Compliance Monitoring</p>
         </div>
 
         <div class="upload-section">
@@ -349,7 +402,7 @@
                 📁 Upload ELD Log File
             </div>
             <p style="margin-top: 15px; color: #6c757d;">
-                Upload your ELD log file to analyze hours of service, violations, and get improvement suggestions
+                Upload your ELD log file to analyze the last 7 days of hours of service data
             </p>
         </div>
 
@@ -360,8 +413,9 @@
             </div>
             
             <div style="text-align: center; padding: 50px; color: #6c757d;">
-                <h3>Welcome to ELD Log Parser</h3>
-                <p>Upload an ELD log file to get started with your analysis.</p>
+                <h3>Welcome to ELD Log Parser - Last 7 Days</h3>
+                <p>Upload an ELD log file to analyze your recent driving activity and compliance status.</p>
+                <p style="margin-top: 10px; font-size: 0.9em;"><strong>Demo:</strong> Upload any text file to see sample 7-day data.</p>
             </div>
         </div>
     </div>
@@ -409,7 +463,7 @@
                 </div>
                 <div class="loading">
                     <div class="spinner"></div>
-                    <p>Analyzing your ELD logs...</p>
+                    <p>Analyzing your last 7 days of ELD logs...</p>
                 </div>
             `;
 
@@ -419,7 +473,7 @@
                 debug('File read successfully, content length: ' + e.target.result.length);
                 try {
                     const content = e.target.result;
-                    debug('Starting to parse ELD log...');
+                    debug('Starting to parse ELD log for last 7 days...');
                     const parsedData = parseELDLog(content);
                     debug('Parsing complete, displaying results...');
                     displayResults(parsedData);
@@ -522,54 +576,131 @@
 
             debug('Parsed ' + days.length + ' days of data');
             
-            // If no data was parsed, create demo data
+            // If no data was parsed, create demo data for last 7 days
             if (days.length === 0) {
-                debug('No ELD data found, creating demo data...');
-                return createDemoData();
+                debug('No ELD data found, creating demo data for last 7 days...');
+                return createLast7DaysData();
             }
 
+            // Filter to last 7 days if more data exists
+            const last7Days = days.slice(-7);
+            
             return {
-                days: days,
-                allEvents: allEvents,
+                days: last7Days,
+                allEvents: last7Days.flatMap(day => day.events.map(event => ({...event, date: day.date}))),
                 driverInfo: extractDriverInfo(content),
-                violations: detectViolations(days),
-                suggestions: generateSuggestions(days)
+                violations: detectViolations(last7Days),
+                suggestions: generateSuggestions(last7Days)
             };
         }
 
-        function createDemoData() {
-            debug('Creating demo data for testing...');
+        function createLast7DaysData() {
+            debug('Creating demo data for last 7 days...');
             
-            const demoDays = [
-                {
-                    date: '15-JAN-25',
-                    events: [
-                        { time: '06:00:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'Off Duty', activity: '' },
-                        { time: '06:30:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'On Duty Not Driving', activity: 'Pre-Trip Inspection' },
-                        { time: '07:00:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'Driving', activity: '' },
-                        { time: '18:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Off Duty', activity: '' }
-                    ],
-                    totalHours: { offDuty: 12.5, sleeper: 8, driving: 10, onDuty: 1.5 },
-                    miles: 450,
-                    startOdometer: 125000,
-                    endOdometer: 125450,
-                    violations: []
-                },
-                {
-                    date: '16-JAN-25',
-                    events: [
-                        { time: '06:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Off Duty', activity: '' },
-                        { time: '07:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'On Duty Not Driving', activity: 'Pre-Trip Inspection' },
-                        { time: '07:30:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Driving', activity: '' },
-                        { time: '19:00:00', location: 'Oklahoma City, OK', odometer: 125900, engineHours: 3522, status: 'Off Duty', activity: '' }
-                    ],
-                    totalHours: { offDuty: 11, sleeper: 10, driving: 11.5, onDuty: 0.5 },
-                    miles: 450,
-                    startOdometer: 125450,
-                    endOdometer: 125900,
-                    violations: []
-                }
+            const today = new Date();
+            const demoDays = [];
+            
+            const cities = [
+                { name: 'Atlanta, GA', next: 'Nashville, TN' },
+                { name: 'Nashville, TN', next: 'Louisville, KY' },
+                { name: 'Louisville, KY', next: 'Indianapolis, IN' },
+                { name: 'Indianapolis, IN', next: 'Chicago, IL' },
+                { name: 'Chicago, IL', next: 'Milwaukee, WI' },
+                { name: 'Milwaukee, WI', next: 'Minneapolis, MN' },
+                { name: 'Minneapolis, MN', next: 'Des Moines, IA' }
             ];
+
+            let currentOdometer = 125000;
+            let currentEngineHours = 3500;
+
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date(today);
+                date.setDate(today.getDate() - i);
+                
+                const dateStr = date.toLocaleDateString('en-US', { 
+                    day: '2-digit', 
+                    month: 'short', 
+                    year: '2-digit' 
+                }).replace(/\//g, '-').toUpperCase();
+
+                const city = cities[6 - i];
+                const nextCity = cities[6 - i];
+                
+                const dayMiles = Math.floor(Math.random() * 200) + 300; // 300-500 miles
+                const drivingHours = Math.floor(Math.random() * 3) + 8; // 8-11 hours
+                const onDutyHours = Math.floor(Math.random() * 2) + 1; // 1-3 hours
+                const offDutyHours = 24 - drivingHours - onDutyHours;
+                const sleeperHours = Math.floor(Math.random() * 2) + 8; // 8-10 hours
+
+                const events = [
+                    { 
+                        time: '06:00:00', 
+                        location: city.name, 
+                        odometer: currentOdometer, 
+                        engineHours: currentEngineHours, 
+                        status: 'Off Duty', 
+                        activity: '' 
+                    },
+                    { 
+                        time: '06:30:00', 
+                        location: city.name, 
+                        odometer: currentOdometer, 
+                        engineHours: currentEngineHours, 
+                        status: 'On Duty Not Driving', 
+                        activity: 'Pre-Trip Inspection' 
+                    },
+                    { 
+                        time: '07:00:00', 
+                        location: city.name, 
+                        odometer: currentOdometer, 
+                        engineHours: currentEngineHours, 
+                        status: 'Driving', 
+                        activity: '' 
+                    },
+                    { 
+                        time: '12:00:00', 
+                        location: 'Highway Rest Area', 
+                        odometer: currentOdometer + Math.floor(dayMiles * 0.4), 
+                        engineHours: currentEngineHours + 5, 
+                        status: 'Off Duty', 
+                        activity: 'DOT Break' 
+                    },
+                    { 
+                        time: '12:30:00', 
+                        location: 'Highway Rest Area', 
+                        odometer: currentOdometer + Math.floor(dayMiles * 0.4), 
+                        engineHours: currentEngineHours + 5, 
+                        status: 'Driving', 
+                        activity: '' 
+                    },
+                    { 
+                        time: (18 + Math.floor(Math.random() * 3)).toString().padStart(2, '0') + ':00:00', 
+                        location: city.next, 
+                        odometer: currentOdometer + dayMiles, 
+                        engineHours: currentEngineHours + drivingHours, 
+                        status: 'Off Duty', 
+                        activity: '' 
+                    }
+                ];
+
+                currentOdometer += dayMiles;
+                currentEngineHours += drivingHours;
+
+                demoDays.push({
+                    date: dateStr,
+                    events: events,
+                    totalHours: { 
+                        offDuty: offDutyHours, 
+                        sleeper: sleeperHours, 
+                        driving: drivingHours, 
+                        onDuty: onDutyHours 
+                    },
+                    miles: dayMiles,
+                    startOdometer: currentOdometer - dayMiles,
+                    endOdometer: currentOdometer,
+                    violations: []
+                });
+            }
 
             return {
                 days: demoDays,
@@ -609,9 +740,9 @@
             const licenseMatch = content.match(/Driver License Number\s+(\d+)/);
             
             return {
-                name: driverMatch ? `${driverMatch[2]} ${driverMatch[1]}` : 'Unknown',
-                dotNumber: dotMatch ? dotMatch[1] : 'Unknown',
-                licenseNumber: licenseMatch ? licenseMatch[1] : 'Unknown'
+                name: driverMatch ? `${driverMatch[2]} ${driverMatch[1]}` : 'Demo Driver',
+                dotNumber: dotMatch ? dotMatch[1] : '123456',
+                licenseNumber: licenseMatch ? licenseMatch[1] : 'ABC123'
             };
         }
 
@@ -697,151 +828,4 @@
             
             const content = document.getElementById('content');
             const totalMiles = data.days.reduce((sum, day) => sum + day.miles, 0);
-            const totalDrivingHours = data.days.reduce((sum, day) => sum + day.totalHours.driving, 0);
-            const avgMilesPerDay = totalMiles / data.days.length;
-            const avgDrivingHours = totalDrivingHours / data.days.length;
-            const violationCount = data.violations.length;
-            const fuelEfficiency = totalDrivingHours > 0 ? (totalMiles / totalDrivingHours).toFixed(1) : 0;
-
-            content.innerHTML = `
-                <div class="debug-info" id="debugInfo">
-                    <strong>Debug Information:</strong><br>
-                    <span id="debugText">Analysis complete! Found ${data.days.length} days of data.</span>
-                </div>
-                
-                <div class="metrics-grid">
-                    <div class="metric-card">
-                        <h3>Total Miles</h3>
-                        <div class="value">${totalMiles.toLocaleString()}</div>
-                        <div>${data.days.length} days</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>Total Driving Hours</h3>
-                        <div class="value">${totalDrivingHours.toFixed(1)}</div>
-                        <div>Avg: ${avgDrivingHours.toFixed(1)}h/day</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>Average Speed</h3>
-                        <div class="value">${fuelEfficiency}</div>
-                        <div>miles per hour</div>
-                    </div>
-                    <div class="metric-card">
-                        <h3>HOS Violations</h3>
-                        <div class="value">${violationCount}</div>
-                        <div>${violationCount === 0 ? 'Compliant' : 'Needs Attention'}</div>
-                    </div>
-                </div>
-
-                ${data.violations.length > 0 ? `
-                <div class="violations-section">
-                    <h2>⚠️ Hours of Service Violations</h2>
-                    ${data.violations.map(violation => `
-                        <div class="violation-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>${violation.type}</strong>
-                                    <div style="margin-top: 5px;">${violation.description}</div>
-                                </div>
-                                <div>
-                                    <span class="status-indicator ${violation.severity === 'Critical' ? 'status-violation' : 'status-warning'}"></span>
-                                    <small>${violation.date}</small>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
-
-                ${data.suggestions.length > 0 ? `
-                <div class="suggestions-section">
-                    <h2>💡 Improvement Suggestions</h2>
-                    ${data.suggestions.map(suggestion => `
-                        <div class="suggestion-item">
-                            <div style="display: flex; justify-content: space-between; align-items: center;">
-                                <div>
-                                    <strong>${suggestion.type}</strong>
-                                    <div style="margin-top: 5px;">${suggestion.description}</div>
-                                </div>
-                                <div>
-                                    <span class="status-indicator ${suggestion.priority === 'High' ? 'status-warning' : 'status-good'}"></span>
-                                    <small>${suggestion.date}</small>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
-
-                <div class="daily-breakdown">
-                    <h2>📅 Daily Breakdown</h2>
-                    ${data.days.map(day => `
-                        <div class="day-card">
-                            <div class="day-header">
-                                <div class="day-date">${day.date}</div>
-                                <div class="day-miles">${day.miles} miles</div>
-                            </div>
-                            <div class="time-breakdown">
-                                <div class="time-item">
-                                    <div class="label">Off Duty</div>
-                                    <div class="value">${day.totalHours.offDuty.toFixed(1)}h</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">Sleeper</div>
-                                    <div class="value">${day.totalHours.sleeper.toFixed(1)}h</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">Driving</div>
-                                    <div class="value">${day.totalHours.driving.toFixed(1)}h</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">On Duty</div>
-                                    <div class="value">${day.totalHours.onDuty.toFixed(1)}h</div>
-                                </div>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-
-                <div class="route-section">
-                    <h2>🗺️ Route Details</h2>
-                    ${data.days.map(day => `
-                        <div style="margin-bottom: 20px;">
-                            <h3 style="color: #007bff; margin-bottom: 10px;">${day.date}</h3>
-                            ${day.events.slice(0, 10).map(event => `
-                                <div class="route-item">
-                                    <div class="route-time">${event.time}</div>
-                                    <div class="route-location">${event.location}</div>
-                                    <div class="route-details">
-                                        ${event.status}${event.activity ? ` - ${event.activity}` : ''}
-                                        <br><small>Odometer: ${event.odometer.toLocaleString()}</small>
-                                    </div>
-                                </div>
-                            `).join('')}
-                            ${day.events.length > 10 ? `<div style="text-align: center; padding: 10px; color: #6c757d;">... and ${day.events.length - 10} more events</div>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-            `;
-            
-            debug('Results displayed successfully!');
-        }
-
-        function displayError(message) {
-            debug('Displaying error: ' + message);
-            document.getElementById('content').innerHTML = `
-                <div class="debug-info" id="debugInfo">
-                    <strong>Debug Information:</strong><br>
-                    <span id="debugText">Error occurred: ${message}</span>
-                </div>
-                <div class="error">
-                    <h2>❌ Error</h2>
-                    <p>${message}</p>
-                    <p>Please make sure you're uploading a valid ELD log file.</p>
-                    <p><strong>Supported formats:</strong> .txt, .log files</p>
-                    <p><strong>Try uploading any text file to see the demo functionality!</strong></p>
-                </div>
-            `;
-        }
-    </script>
-</body>
-</html>
+            const totalDrivingHours = data.days.reduce((sum
