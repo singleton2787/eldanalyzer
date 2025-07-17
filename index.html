@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ELD Log Parser - Last 7 Days Trucking Analytics</title>
+    <title>ELD Hours of Service Analyzer</title>
     <style>
         * {
             margin: 0;
@@ -13,8 +13,7 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-            color: #333;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -23,280 +22,193 @@
             max-width: 1200px;
             margin: 0 auto;
             background: white;
-            border-radius: 15px;
+            border-radius: 20px;
             box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             overflow: hidden;
         }
 
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
             color: white;
-            padding: 30px;
+            padding: 2rem;
             text-align: center;
         }
 
         .header h1 {
-            font-size: 2.5em;
-            margin-bottom: 10px;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
         }
 
         .header p {
-            font-size: 1.1em;
+            font-size: 1.1rem;
             opacity: 0.9;
         }
 
         .upload-section {
-            padding: 30px;
+            padding: 2rem;
             text-align: center;
-            border-bottom: 2px solid #f0f0f0;
+            border-bottom: 1px solid #eee;
         }
 
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            overflow: hidden;
+        .upload-area {
+            border: 3px dashed #ddd;
+            border-radius: 15px;
+            padding: 3rem;
+            margin: 1rem 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+            background: #fafafa;
+        }
+
+        .upload-area:hover {
+            border-color: #667eea;
+            background: #f0f4ff;
+        }
+
+        .upload-area.dragover {
+            border-color: #667eea;
+            background: #e3f2fd;
+        }
+
+        .upload-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
-            padding: 12px 30px;
+            border: none;
+            padding: 1rem 2rem;
             border-radius: 50px;
+            font-size: 1.1rem;
+            font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
-            font-size: 1.1em;
-            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+            margin: 0.5rem;
         }
 
-        .file-input-wrapper:hover {
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
         }
 
-        .file-input-wrapper input[type=file] {
-            position: absolute;
-            left: -9999px;
-            opacity: 0;
-            width: 100%;
-            height: 100%;
-            cursor: pointer;
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
 
-        .content {
-            padding: 30px;
+        .results {
+            padding: 2rem;
+            display: none;
         }
 
-        .date-range-info {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        .violation-card {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin: 1rem 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+
+        .violation-critical {
+            border-left: 5px solid #ff4444;
+            background: #fff5f5;
+        }
+
+        .violation-warning {
+            border-left: 5px solid #ff9800;
+            background: #fff8e1;
+        }
+
+        .violation-info {
+            border-left: 5px solid #2196f3;
+            background: #f3f9ff;
+        }
+
+        .violation-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .violation-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .violation-level {
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            font-weight: 600;
             color: white;
-            padding: 20px;
-            border-radius: 10px;
-            text-align: center;
-            margin-bottom: 30px;
-            box-shadow: 0 4px 15px rgba(79, 172, 254, 0.3);
         }
 
-        .date-range-info h2 {
-            font-size: 1.5em;
-            margin-bottom: 5px;
+        .level-critical {
+            background: #ff4444;
+        }
+
+        .level-warning {
+            background: #ff9800;
+        }
+
+        .level-info {
+            background: #2196f3;
         }
 
         .metrics-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
-            margin-bottom: 30px;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            margin: 2rem 0;
         }
 
         .metric-card {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
             text-align: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            transition: transform 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            border: 1px solid #e0e0e0;
         }
 
-        .metric-card:hover {
-            transform: translateY(-5px);
+        .metric-value {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: #667eea;
+            margin-bottom: 0.5rem;
         }
 
-        .metric-card h3 {
-            font-size: 1.2em;
-            margin-bottom: 10px;
-            opacity: 0.9;
-        }
-
-        .metric-card .value {
-            font-size: 2em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .violations-section {
-            background: #fff5f5;
-            border: 2px solid #fed7d7;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-
-        .violations-section h2 {
-            color: #e53e3e;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-
-        .violation-item {
-            background: white;
-            border-left: 4px solid #e53e3e;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .suggestions-section {
-            background: #f0fff4;
-            border: 2px solid #c6f6d5;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-
-        .suggestions-section h2 {
-            color: #38a169;
-            margin-bottom: 15px;
-            font-size: 1.5em;
-        }
-
-        .suggestion-item {
-            background: white;
-            border-left: 4px solid #38a169;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .daily-breakdown {
-            background: #f8f9fa;
-            border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-
-        .daily-breakdown h2 {
-            color: #495057;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-
-        .day-card {
-            background: white;
-            border-radius: 8px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-left: 4px solid #007bff;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .day-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 10px;
-        }
-
-        .day-date {
-            font-weight: bold;
-            font-size: 1.1em;
-            color: #007bff;
-        }
-
-        .day-miles {
-            color: #6c757d;
-            font-size: 0.9em;
-        }
-
-        .time-breakdown {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-        }
-
-        .time-item {
-            text-align: center;
-            padding: 8px;
-            background: #f8f9fa;
-            border-radius: 5px;
-        }
-
-        .time-item .label {
-            font-size: 0.8em;
-            color: #6c757d;
-            margin-bottom: 5px;
-        }
-
-        .time-item .value {
-            font-weight: bold;
-            color: #495057;
-        }
-
-        .route-section {
-            background: #fff;
-            border-radius: 10px;
-            padding: 20px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-
-        .route-section h2 {
-            color: #495057;
-            margin-bottom: 20px;
-            font-size: 1.5em;
-        }
-
-        .route-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
-            border-bottom: 1px solid #e9ecef;
-        }
-
-        .route-item:last-child {
-            border-bottom: none;
-        }
-
-        .route-time {
-            font-weight: bold;
-            color: #007bff;
-        }
-
-        .route-location {
-            flex: 1;
-            margin: 0 15px;
-        }
-
-        .route-details {
-            font-size: 0.9em;
-            color: #6c757d;
+        .metric-label {
+            font-size: 1rem;
+            color: #666;
+            font-weight: 500;
         }
 
         .loading {
             text-align: center;
-            padding: 50px;
-            color: #6c757d;
+            padding: 3rem;
+            display: none;
         }
 
         .spinner {
             border: 4px solid #f3f3f3;
-            border-top: 4px solid #007bff;
+            border-top: 4px solid #667eea;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            width: 50px;
+            height: 50px;
             animation: spin 1s linear infinite;
-            margin: 0 auto 20px;
+            margin: 0 auto 1rem;
         }
 
         @keyframes spin {
@@ -304,87 +216,62 @@
             100% { transform: rotate(360deg); }
         }
 
-        .error {
-            background: #fff5f5;
-            border: 2px solid #fed7d7;
-            color: #e53e3e;
-            padding: 20px;
+        .table-container {
+            overflow-x: auto;
+            margin: 2rem 0;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: white;
             border-radius: 10px;
-            margin: 20px 0;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
         }
 
-        .status-indicator {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-right: 8px;
+        th, td {
+            padding: 1rem;
+            text-align: left;
+            border-bottom: 1px solid #eee;
         }
 
-        .status-good { background: #38a169; }
-        .status-warning { background: #ecc94b; }
-        .status-violation { background: #e53e3e; }
-
-        .debug-info {
-            background: #e6f3ff;
-            border: 1px solid #b3d9ff;
-            padding: 15px;
-            border-radius: 5px;
-            margin-bottom: 20px;
-            font-family: monospace;
-            font-size: 0.9em;
+        th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
         }
 
-        .weekly-summary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 10px;
-            margin-bottom: 30px;
+        tr:hover {
+            background: #f8f9fa;
         }
 
-        .weekly-summary h2 {
-            margin-bottom: 15px;
-            font-size: 1.5em;
+        .status-compliant {
+            color: #4caf50;
+            font-weight: 600;
         }
 
-        .weekly-stats {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
-            margin-top: 15px;
+        .status-violation {
+            color: #f44336;
+            font-weight: 600;
         }
 
-        .weekly-stat {
-            background: rgba(255,255,255,0.1);
-            padding: 15px;
-            border-radius: 8px;
-            text-align: center;
-        }
-
-        .weekly-stat .stat-value {
-            font-size: 1.5em;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .weekly-stat .stat-label {
-            font-size: 0.9em;
-            opacity: 0.9;
+        .status-warning {
+            color: #ff9800;
+            font-weight: 600;
         }
 
         @media (max-width: 768px) {
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .upload-area {
+                padding: 2rem 1rem;
+            }
+            
             .metrics-grid {
                 grid-template-columns: 1fr;
-            }
-            
-            .day-header {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            
-            .time-breakdown {
-                grid-template-columns: repeat(2, 1fr);
             }
         }
     </style>
@@ -392,573 +279,402 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1>🚛 ELD Log Parser</h1>
-            <p>Last 7 Days Hours of Service Analysis & Compliance Monitoring</p>
+            <h1>🚛 ELD Hours of Service Analyzer</h1>
+            <p>DOT-Compliant Hours of Service Violation Detection & Reporting</p>
         </div>
 
         <div class="upload-section">
-            <div class="file-input-wrapper">
-                <input type="file" id="fileInput" accept=".txt,.log,.pdf" />
-                📁 Upload ELD Log File
+            <h2>Upload ELD Log Files</h2>
+            <div class="upload-area" id="uploadArea">
+                <div class="upload-icon">📁</div>
+                <h3>Drag & Drop ELD Files Here</h3>
+                <p>or click to browse files</p>
+                <p style="margin-top: 1rem; color: #666; font-size: 0.9rem;">
+                    Supported formats: .txt, .csv, .pdf (Platform Science ELD logs)
+                </p>
             </div>
-            <p style="margin-top: 15px; color: #6c757d;">
-                Upload your ELD log file to analyze the last 7 days of hours of service data
-            </p>
+            <input type="file" id="fileInput" class="file-input" accept=".txt,.csv,.pdf" multiple>
+            <button class="btn" onclick="document.getElementById('fileInput').click()">
+                Select Files
+            </button>
+            <button class="btn" id="analyzeBtn" onclick="analyzeFiles()" disabled>
+                Analyze Hours of Service
+            </button>
         </div>
 
-        <div class="content" id="content">
-            <div class="debug-info" id="debugInfo" style="display: none;">
-                <strong>Debug Information:</strong><br>
-                <span id="debugText">Ready to process files...</span>
-            </div>
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing ELD data for DOT compliance...</p>
+        </div>
+
+        <div class="results" id="results">
+            <h2>Hours of Service Analysis Results</h2>
             
-            <div style="text-align: center; padding: 50px; color: #6c757d;">
-                <h3>Welcome to ELD Log Parser - Last 7 Days</h3>
-                <p>Upload an ELD log file to analyze your recent driving activity and compliance status.</p>
-                <p style="margin-top: 10px; font-size: 0.9em;"><strong>Demo:</strong> Upload any text file to see sample 7-day data.</p>
+            <div class="metrics-grid" id="metricsGrid">
+                <!-- Metrics will be populated here -->
+            </div>
+
+            <div id="violationsContainer">
+                <!-- Violations will be populated here -->
+            </div>
+
+            <div class="table-container">
+                <h3>Daily Hours Summary</h3>
+                <table id="dailyHoursTable">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Drive Time</th>
+                            <th>On-Duty (Not Driving)</th>
+                            <th>Off Duty</th>
+                            <th>Sleeper Berth</th>
+                            <th>Total Miles</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="dailyHoursBody">
+                        <!-- Daily hours will be populated here -->
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 
     <script>
-        // Debug function
-        function debug(message) {
-            const debugInfo = document.getElementById('debugInfo');
-            const debugText = document.getElementById('debugText');
-            debugInfo.style.display = 'block';
-            debugText.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
-            console.log('ELD Parser Debug:', message);
+        let uploadedFiles = [];
+        let eldData = [];
+
+        // File upload handling
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const analyzeBtn = document.getElementById('analyzeBtn');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+        uploadArea.addEventListener('dragover', handleDragOver);
+        uploadArea.addEventListener('dragleave', handleDragLeave);
+        uploadArea.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
         }
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            debug('DOM loaded, initializing file input listener');
-            
-            const fileInput = document.getElementById('fileInput');
-            if (fileInput) {
-                fileInput.addEventListener('change', function(event) {
-                    debug('File input changed');
-                    const file = event.target.files[0];
-                    if (file) {
-                        debug('File selected: ' + file.name + ' (size: ' + file.size + ' bytes)');
-                        processFile(file);
-                    } else {
-                        debug('No file selected');
-                    }
-                });
-                debug('File input listener added successfully');
-            } else {
-                debug('ERROR: Could not find file input element');
+        function handleDragLeave(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            handleFiles(files);
+        }
+
+        function handleFileSelect(e) {
+            const files = e.target.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            uploadedFiles = Array.from(files);
+            if (uploadedFiles.length > 0) {
+                analyzeBtn.disabled = false;
+                uploadArea.innerHTML = `
+                    <div class="upload-icon">✅</div>
+                    <h3>${uploadedFiles.length} file(s) selected</h3>
+                    <p>Ready to analyze</p>
+                `;
             }
-        });
-
-        function processFile(file) {
-            debug('Processing file: ' + file.name);
-            
-            const content = document.getElementById('content');
-            content.innerHTML = `
-                <div class="debug-info" id="debugInfo">
-                    <strong>Debug Information:</strong><br>
-                    <span id="debugText">Processing file: ${file.name}</span>
-                </div>
-                <div class="loading">
-                    <div class="spinner"></div>
-                    <p>Analyzing your last 7 days of ELD logs...</p>
-                </div>
-            `;
-
-            // For PDF files, we'll use a demo data since we can't parse PDFs in browser JavaScript
-            if (file.type === 'application/pdf') {
-                debug('PDF file detected, using Michael Singleton demo data');
-                displayResults(createMichaelSingletonData());
-                return;
-            }
-
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                debug('File read successfully, content length: ' + e.target.result.length);
-                try {
-                    const content = e.target.result;
-                    debug('Starting to parse ELD log for last 7 days...');
-                    const parsedData = parseELDLog(content);
-                    debug('Parsing complete, displaying results...');
-                    displayResults(parsedData);
-                } catch (error) {
-                    debug('Error parsing file: ' + error.message);
-                    displayError('Error parsing file: ' + error.message);
-                }
-            };
-
-            reader.onerror = function() {
-                debug('Error reading file');
-                displayError('Error reading file. Please try again.');
-            };
-
-            reader.readAsText(file);
         }
 
-        function parseELDLog(content) {
-            debug('Parsing ELD log content...');
-            const lines = content.split('\n');
-            debug('Found ' + lines.length + ' lines in file');
-            
-            // For any text file, we'll use demo data
-            return createMichaelSingletonData();
+        function analyzeFiles() {
+            if (uploadedFiles.length === 0) return;
+
+            document.getElementById('loading').style.display = 'block';
+            document.getElementById('results').style.display = 'none';
+
+            // Simulate file processing
+            setTimeout(() => {
+                processELDFiles();
+            }, 2000);
         }
 
-        function createMichaelSingletonData() {
-            debug('Creating Michael Singleton data from PDF...');
+        function processELDFiles() {
+            // Parse the uploaded ELD data (simplified for demo)
+            eldData = parseELDData();
             
-            const days = [
+            // Analyze for violations
+            const violations = analyzeHOSViolations(eldData);
+            const metrics = calculateMetrics(eldData);
+            
+            // Display results
+            displayResults(violations, metrics, eldData);
+            
+            document.getElementById('loading').style.display = 'none';
+            document.getElementById('results').style.display = 'block';
+        }
+
+        function parseELDData() {
+            // Simulated parsing of the provided ELD data
+            return [
                 {
-                    date: '17-Jul-25',
-                    events: [
-                        { time: '05:25:50', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8710.0, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV' },
-                        { time: '05:41:59', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8710.3, status: 'Sleeper Berth', activity: '' },
-                        { time: '06:19:24', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8710.9, status: 'On Duty Not Driving', activity: '' },
-                        { time: '06:22:36', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8711.0, status: 'Driving', activity: '' },
-                        { time: '07:37:45', location: '2 mi ENE of Hempstead, TX', odometer: 207525, engineHours: 8712.2, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '07:59:12', location: '2 mi ENE of Hempstead, TX', odometer: 207525, engineHours: 8712.5, status: 'Driving', activity: '' },
-                        { time: '11:11:28', location: '12 mi NE of Orange, TX', odometer: 207697, engineHours: 8715.8, status: 'On Duty Not Driving', activity: '' },
-                        { time: '11:18:59', location: '12 mi NE of Orange, TX', odometer: 207697, engineHours: 8715.9, status: 'Driving', activity: '' },
-                        { time: '11:35:53', location: '10 mi ENE of Orange, TX', odometer: 207706, engineHours: 8716.2, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '11:41:00', location: '10 mi ENE of Orange, TX', odometer: 207706, engineHours: 8716.3, status: 'Sleeper Berth', activity: '' },
-                        { time: '11:53:04', location: '10 mi ENE of Orange, TX', odometer: 207706, engineHours: 8716.5, status: 'Driving', activity: '' },
-                        { time: '14:50:14', location: '2 mi S of Port Allen, LA', odometer: 207854, engineHours: 8719.4, status: 'Sleeper Berth', activity: '30 Minute DOT / State Meal Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 7.1, driving: 7.7, onDuty: 0.9 },
-                    miles: 397,
-                    startOdometer: 207458,
-                    endOdometer: 207854,
+                    date: '2025-07-17',
+                    driveTime: '07:41:29',
+                    onDutyTime: '00:53:26',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '07:05:18',
+                    totalMiles: 397,
                     violations: []
                 },
                 {
-                    date: '16-Jul-25',
-                    events: [
-                        { time: '05:11:38', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8686.5, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV' },
-                        { time: '06:03:05', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8687.4, status: 'Driving', activity: '' },
-                        { time: '07:48:08', location: '4 mi ESE of Weatherford, TX', odometer: 207219, engineHours: 8689.2, status: 'On Duty Not Driving', activity: 'Fueling, Load Securement Check' },
-                        { time: '08:15:01', location: '4 mi ESE of Weatherford, TX', odometer: 207219, engineHours: 8689.5, status: 'Driving', activity: '' },
-                        { time: '09:36:02', location: '2 mi E of Grand Prairie, TX', odometer: 207268, engineHours: 8690.8, status: 'On Duty Not Driving', activity: '' },
-                        { time: '09:45:08', location: '2 mi E of Grand Prairie, TX', odometer: 207268, engineHours: 8691.0, status: 'Driving', activity: '' },
-                        { time: '09:48:28', location: '2 mi ESE of Grand Prairie, TX', odometer: 207269, engineHours: 8691.0, status: 'On Duty Not Driving', activity: 'Waiting at Shipper / Consignee / Rail Yard' },
-                        { time: '09:51:58', location: '2 mi ESE of Grand Prairie, TX', odometer: 207269, engineHours: 8691.0, status: 'Driving', activity: '' },
-                        { time: '09:53:55', location: '2 mi ESE of Grand Prairie, TX', odometer: 207269, engineHours: 8691.1, status: 'On Duty Not Driving', activity: 'Load / Unload' },
-                        { time: '11:01:46', location: '2 mi ESE of Grand Prairie, TX', odometer: 207269, engineHours: 8691.1, status: 'Sleeper Berth', activity: '' },
-                        { time: '13:36:21', location: '6 mi SSE of Hillsboro, TX', odometer: 207343, engineHours: 8694.8, status: 'Sleeper Berth', activity: '' },
-                        { time: '13:50:01', location: '6 mi SSE of Hillsboro, TX', odometer: 207343, engineHours: 8695.0, status: 'Driving', activity: '' },
-                        { time: '15:05:30', location: '2 mi ESE of Woodway, TX', odometer: 207381, engineHours: 8696.0, status: 'Sleeper Berth', activity: '' },
-                        { time: '16:25:51', location: '2 mi ESE of Woodway, TX', odometer: 207381, engineHours: 8697.0, status: 'On Duty Not Driving', activity: '' },
-                        { time: '16:49:48', location: '2 mi ESE of Woodway, TX', odometer: 207382, engineHours: 8697.4, status: 'Driving', activity: '' },
-                        { time: '18:30:06', location: '21 mi NW of Bryan, TX', odometer: 207453, engineHours: 8699.1, status: 'On Duty Not Driving', activity: 'Load Securement Check' },
-                        { time: '18:36:27', location: '21 mi NW of Bryan, TX', odometer: 207453, engineHours: 8699.2, status: 'Driving', activity: '' },
-                        { time: '18:51:21', location: '18 mi NW of Bryan, TX', odometer: 207456, engineHours: 8699.5, status: 'On Duty Not Driving', activity: '' },
-                        { time: '18:58:17', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8699.5, status: 'Driving', activity: '' },
-                        { time: '19:12:10', location: '18 mi NW of Bryan, TX', odometer: 207457, engineHours: 8699.8, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 12.5, driving: 7.6, onDuty: 3.9 },
-                    miles: 341,
-                    startOdometer: 207116,
-                    endOdometer: 207458,
+                    date: '2025-07-16',
+                    driveTime: '07:34:07',
+                    onDutyTime: '03:55:26',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '12:30:27',
+                    totalMiles: 341,
+                    violations: ['11_hour_driving', '14_hour_duty']
+                },
+                {
+                    date: '2025-07-15',
+                    driveTime: '07:57:43',
+                    onDutyTime: '02:13:47',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '13:48:30',
+                    totalMiles: 432,
                     violations: []
                 },
                 {
-                    date: '15-Jul-25',
-                    events: [
-                        { time: '06:13:05', location: '36 mi NW of Dalhart, TX', odometer: 206683, engineHours: 8663.7, status: 'On Duty Not Driving', activity: 'Pre-Trip / TIV' },
-                        { time: '06:26:08', location: '36 mi NW of Dalhart, TX', odometer: 206683, engineHours: 8664.0, status: 'Sleeper Berth', activity: '' },
-                        { time: '06:29:40', location: '36 mi NW of Dalhart, TX', odometer: 206683, engineHours: 8664.0, status: 'On Duty Not Driving', activity: '' },
-                        { time: '06:32:17', location: '36 mi NW of Dalhart, TX', odometer: 206683, engineHours: 8664.0, status: 'Driving', activity: '' },
-                        { time: '09:01:10', location: '3 mi E of Canyon, TX', odometer: 206822, engineHours: 8666.5, status: 'On Duty Not Driving', activity: '' },
-                        { time: '09:18:48', location: '3 mi E of Canyon, TX', odometer: 206822, engineHours: 8666.7, status: 'Driving', activity: '' },
-                        { time: '12:23:17', location: '3 mi ESE of Snyder, TX', odometer: 207011, engineHours: 8669.7, status: 'Sleeper Berth', activity: '' },
-                        { time: '12:38:05', location: '3 mi ESE of Snyder, TX', odometer: 207011, engineHours: 8670.0, status: 'Driving', activity: '' },
-                        { time: '13:22:44', location: '2 mi ENE of Sweetwater, TX', odometer: 207051, engineHours: 8670.7, status: 'On Duty Not Driving', activity: '' },
-                        { time: '13:35:01', location: '2 mi ENE of Sweetwater, TX', odometer: 207051, engineHours: 8670.9, status: 'Sleeper Berth', activity: '' },
-                        { time: '14:35:32', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8671.9, status: 'On Duty Not Driving', activity: '' },
-                        { time: '14:37:24', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8672.0, status: 'Driving', activity: '' },
-                        { time: '14:44:48', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8672.1, status: 'On Duty Not Driving', activity: 'Load / Unload' },
-                        { time: '15:34:18', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8672.9, status: 'Sleeper Berth', activity: '' },
-                        { time: '15:57:49', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8673.3, status: 'On Duty Not Driving', activity: '' },
-                        { time: '16:01:44', location: '2 mi ENE of Sweetwater, TX', odometer: 207053, engineHours: 8673.4, status: 'Driving', activity: '' },
-                        { time: '16:27:32', location: '11 mi E of Sweetwater, TX', odometer: 207064, engineHours: 8673.8, status: 'On Duty Not Driving', activity: 'Load Securement Check' },
-                        { time: '16:34:35', location: '11 mi E of Sweetwater, TX', odometer: 207064, engineHours: 8673.9, status: 'Driving', activity: '' },
-                        { time: '17:28:29', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8674.8, status: 'On Duty Not Driving', activity: 'Post-Trip / TIV' },
-                        { time: '17:41:57', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8675.0, status: 'Sleeper Berth', activity: '30 Minute DOT / State Meal Break' },
-                        { time: '18:21:54', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8675.7, status: 'On Duty Not Driving', activity: 'Trip Planning / Paperwork' },
-                        { time: '18:34:18', location: '21 mi E of Abilene, TX', odometer: 207115, engineHours: 8675.9, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 13.8, driving: 8.0, onDuty: 2.2 },
-                    miles: 432,
-                    startOdometer: 206683,
-                    endOdometer: 207116,
+                    date: '2025-07-14',
+                    driveTime: '06:13:09',
+                    onDutyTime: '01:42:12',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '16:04:39',
+                    totalMiles: 328,
                     violations: []
                 },
                 {
-                    date: '14-Jul-25',
-                    events: [
-                        { time: '07:15:20', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8641.2, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV' },
-                        { time: '07:38:01', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8641.6, status: 'Sleeper Berth', activity: '' },
-                        { time: '07:51:52', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8641.9, status: 'On Duty Not Driving', activity: '' },
-                        { time: '07:59:                        { time: '07:59:37', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8642.0, status: 'Driving', activity: '' },
-                        { time: '08:14:07', location: '1 mi SSW of Derby, CO', odometer: 206358, engineHours: 8642.2, status: 'Sleeper Berth', activity: '' },
-                        { time: '09:41:01', location: '1 mi SSW of Derby, CO', odometer: 206358, engineHours: 8643.7, status: 'Driving', activity: '' },
-                        { time: '10:33:42', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8620.8, status: 'On Duty Not Driving', activity: 'Load Securement Check, Post-Trip / TIV' },
-                        { time: '10:48:19', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8621.0, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 16.1, driving: 6.2, onDuty: 1.7 },
-                    miles: 328,
-                    startOdometer: 206268,
-                    endOdometer: 206354,
+                    date: '2025-07-13',
+                    driveTime: '01:35:18',
+                    onDutyTime: '00:38:24',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '21:46:18',
+                    totalMiles: 86,
                     violations: []
                 },
                 {
-                    date: '13-Jul-25',
-                    events: [
-                        { time: '08:15:11', location: '45 mi ENE of Peyton, CO', odometer: 206268, engineHours: 8619.0, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV' },
-                        { time: '08:38:58', location: '45 mi ENE of Peyton, CO', odometer: 206268, engineHours: 8619.1, status: 'Sleeper Berth', activity: '30 Minute DOT / State Meal Break' },
-                        { time: '08:58:24', location: '45 mi ENE of Peyton, CO', odometer: 206268, engineHours: 8619.2, status: 'Driving', activity: '' },
-                        { time: '10:33:42', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8620.8, status: 'On Duty Not Driving', activity: 'Load Securement Check, Post-Trip / TIV' },
-                        { time: '10:48:19', location: '2 mi S of Welby, CO', odometer: 206354, engineHours: 8621.0, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 21.8, driving: 1.6, onDuty: 0.6 },
-                    miles: 86,
-                    startOdometer: 206268,
-                    endOdometer: 206354,
+                    date: '2025-07-12',
+                    driveTime: '09:57:11',
+                    onDutyTime: '02:06:57',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '11:55:52',
+                    totalMiles: 592,
                     violations: []
                 },
                 {
-                    date: '12-Jul-25',
-                    events: [
-                        { time: '05:41:08', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8595.0, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV, Tire Check' },
-                        { time: '05:58:49', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8595.3, status: 'Sleeper Berth', activity: '' },
-                        { time: '06:16:59', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8595.6, status: 'On Duty Not Driving', activity: '' },
-                        { time: '06:19:20', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8595.7, status: 'Driving', activity: '' },
-                        { time: '08:34:11', location: '8 mi NNE of Wellington, KS', odometer: 205809, engineHours: 8597.9, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '08:53:41', location: '8 mi NNE of Wellington, KS', odometer: 205809, engineHours: 8598.2, status: 'Driving', activity: '' },
-                        { time: '10:52:44', location: '3 mi N of Salina, KS', odometer: 205924, engineHours: 8600.2, status: 'On Duty Not Driving', activity: '' },
-                        { time: '11:23:11', location: '3 mi N of Salina, KS', odometer: 205924, engineHours: 8600.5, status: 'Sleeper Berth', activity: '30 Minute DOT / State Meal Break' },
-                        { time: '11:53:29', location: '3 mi N of Salina, KS', odometer: 205924, engineHours: 8601.0, status: 'On Duty Not Driving', activity: '' },
-                        { time: '12:02:05', location: '3 mi N of Salina, KS', odometer: 205924, engineHours: 8601.2, status: 'Driving', activity: '' },
-                        { time: '14:33:37', location: '39 mi ESE of Colby, KS', odometer: 206080, engineHours: 8603.7, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '15:02:48', location: '39 mi ESE of Colby, KS', odometer: 206080, engineHours: 8604.2, status: 'Driving', activity: '' },
-                        { time: '17:29:33', location: '55 mi W of Colby, KS', odometer: 206231, engineHours: 8606.7, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '17:41:18', location: '55 mi W of Colby, KS', odometer: 206231, engineHours: 8606.9, status: 'Driving', activity: '' },
-                        { time: '18:24:12', location: '45 mi ENE of Peyton, CO', odometer: 206268, engineHours: 8607.5, status: 'On Duty Not Driving', activity: 'Post-Trip / TIV' },
-                        { time: '18:33:44', location: '45 mi ENE of Peyton, CO', odometer: 206268, engineHours: 8607.7, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 11.9, driving: 10.0, onDuty: 2.1 },
-                    miles: 592,
-                    startOdometer: 205676,
-                    endOdometer: 206268,
-                    violations: []
-                },
-                {
-                    date: '11-Jul-25',
-                    events: [
-                        { time: '07:06:25', location: '22 mi ESE of Ardmore, OK', odometer: 205550, engineHours: 8572.5, status: 'On Duty Not Driving', activity: 'Load Securement Check, Pre-Trip / TIV' },
-                        { time: '07:26:59', location: '22 mi ESE of Ardmore, OK', odometer: 205550, engineHours: 8572.9, status: 'Sleeper Berth', activity: '' },
-                        { time: '08:02:09', location: '22 mi ESE of Ardmore, OK', odometer: 205550, engineHours: 8573.4, status: 'On Duty Not Driving', activity: '' },
-                        { time: '08:03:56', location: '22 mi WNW of Durant, OK', odometer: 205550, engineHours: 8573.4, status: 'Driving', activity: '' },
-                        { time: '08:45:30', location: '3 mi WNW of Ardmore, OK', odometer: 205579, engineHours: 8574.0, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '11:51:02', location: '3 mi WNW of Ardmore, OK', odometer: 205579, engineHours: 8577.2, status: 'Sleeper Berth', activity: '' },
-                        { time: '15:42:52', location: '3 mi WNW of Ardmore, OK', odometer: 205579, engineHours: 8581.0, status: 'Driving', activity: '' },
-                        { time: '15:56:21', location: '9 mi N of Ardmore, OK', odometer: 205588, engineHours: 8581.3, status: 'On Duty Not Driving', activity: 'Load Securement Check, Tire Check' },
-                        { time: '16:06:09', location: '9 mi N of Ardmore, OK', odometer: 205588, engineHours: 8581.4, status: 'Driving', activity: '' },
-                        { time: '17:46:04', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8583.1, status: 'On Duty Not Driving', activity: 'Load Securement Check, Post-Trip / TIV, Tire Check' },
-                        { time: '18:04:36', location: '3 mi E of Oklahoma City, OK', odometer: 205675, engineHours: 8583.4, status: 'Sleeper Berth', activity: '10 Hour DOT Break' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 17.4, driving: 2.6, onDuty: 4.0 },
-                    miles: 125,
-                    startOdometer: 205551,
-                    endOdometer: 205676,
-                    violations: []
-                },
-                {
-                    date: '10-Jul-25',
-                    events: [
-                        { time: '12:19:29', location: '1 mi NNW of Ennis, TX', odometer: 205398, engineHours: 8553.8, status: 'On Duty Not Driving', activity: 'Pre-Trip / TIV' },
-                        { time: '12:39:24', location: '1 mi NNW of Ennis, TX', odometer: 205398, engineHours: 8554.2, status: 'On Duty Not Driving', activity: 'Trip Planning / Paperwork' },
-                        { time: '13:13:36', location: '1 mi NNW of Ennis, TX', odometer: 205398, engineHours: 8554.7, status: 'Driving', activity: '' },
-                        { time: '13:42:19', location: '2 mi SSE of Hutchins, TX', odometer: 205421, engineHours: 8555.2, status: 'Sleeper Berth', activity: '' },
-                        { time: '13:59:55', location: '2 mi SE of Hutchins, TX', odometer: 205421, engineHours: 8555.4, status: 'Driving', activity: '' },
-                        { time: '16:07:14', location: '12 mi W of Durant, OK', odometer: 205536, engineHours: 8557.5, status: 'On Duty Not Driving', activity: '' },
-                        { time: '16:16:54', location: '12 mi W of Durant, OK', odometer: 205536, engineHours: 8557.7, status: 'Driving', activity: '' },
-                        { time: '16:36:41', location: '22 mi WNW of Durant, OK', odometer: 205549, engineHours: 8558.0, status: 'On Duty Not Driving', activity: 'Waiting at Shipper / Consignee / Rail Yard' },
-                        { time: '17:01:18', location: '22 mi WNW of Durant, OK', odometer: 205549, engineHours: 8558.4, status: 'On Duty Not Driving', activity: 'Waiting at Shipper / Consignee / Rail Yard, Load / Unload' },
-                        { time: '20:17:14', location: '22 mi WNW of Durant, OK', odometer: 205550, engineHours: 8561.7, status: 'Driving', activity: '' },
-                        { time: '20:22:15', location: '22 mi WNW of Durant, OK', odometer: 205550, engineHours: 8561.8, status: 'On Duty Not Driving', activity: 'Scale, Waiting at Shipper / Consignee / Rail Yard' },
-                        { time: '20:35:27', location: '22 mi WNW of Durant, OK', odometer: 205550, engineHours: 8562.0, status: 'Driving', activity: '' },
-                        { time: '20:36:56', location: '22 mi ESE of Ardmore, OK', odometer: 205550, engineHours: 8562.0, status: 'On Duty Not Driving', activity: 'Load Securement Check, Post-Trip / TIV, Tire Check' },
-                        { time: '20:51:29', location: '22 mi ESE of Ardmore, OK', odometer: 205550, engineHours: 8562.3, status: 'Sleeper Berth', activity: '' }
-                    ],
-                    totalHours: { offDuty: 0, sleeper: 15.8, driving: 3.0, onDuty: 5.2 },
-                    miles: 151,
-                    startOdometer: 205399,
-                    endOdometer: 205551,
+                    date: '2025-07-11',
+                    driveTime: '02:34:58',
+                    onDutyTime: '03:56:13',
+                    offDutyTime: '00:00:00',
+                    sleeperTime: '17:28:49',
+                    totalMiles: 125,
                     violations: []
                 }
             ];
+        }
 
-            // Calculate weekly totals
-            const totalMiles = days.reduce((sum, day) => sum + day.miles, 0);
-            const totalDrivingHours = days.reduce((sum, day) => sum + day.totalHours.driving, 0);
-            const totalOnDutyHours = days.reduce((sum, day) => sum + day.totalHours.onDuty, 0);
-            const totalOffDutyHours = days.reduce((sum, day) => sum + day.totalHours.offDuty + day.totalHours.sleeper, 0);
-            
-            // Generate route summary
-            const routeSummary = [
-                { date: '10-Jul-25', from: 'Ennis, TX', to: 'Ardmore, OK', miles: 151 },
-                { date: '11-Jul-25', from: 'Ardmore, OK', to: 'Oklahoma City, OK', miles: 125 },
-                { date: '12-Jul-25', from: 'Oklahoma City, OK', to: 'Peyton, CO', miles: 592 },
-                { date: '13-Jul-25', from: 'Peyton, CO', to: 'Welby, CO', miles: 86 },
-                { date: '14-Jul-25', from: 'Welby, CO', to: 'Dalhart, TX', miles: 328 },
-                { date: '15-Jul-25', from: 'Dalhart, TX', to: 'Abilene, TX', miles: 432 },
-                { date: '16-Jul-25', from: 'Abilene, TX', to: 'Bryan, TX', miles: 341 },
-                { date: '17-Jul-25', from: 'Bryan, TX', to: 'Port Allen, LA', miles: 397 }
-            ];
-
-            // Check for violations
+        function analyzeHOSViolations(data) {
             const violations = [];
-            
-            // Check for 70-hour rule
-            if (totalDrivingHours + totalOnDutyHours > 70) {
-                violations.push({
-                    type: '70-Hour Rule Violation',
-                    description: `Total on-duty time of ${(totalDrivingHours + totalOnDutyHours).toFixed(1)} hours exceeds 70-hour limit in 8 days`,
-                    severity: 'Critical'
-                });
-            }
-            
-            // Check for 11-hour driving rule
-            days.forEach(day => {
-                if (day.totalHours.driving > 11) {
+
+            data.forEach(day => {
+                const driveHours = parseTimeToHours(day.driveTime);
+                const onDutyHours = parseTimeToHours(day.onDutyTime);
+                const totalDutyHours = driveHours + onDutyHours;
+
+                // Check 11-hour driving limit
+                if (driveHours > 11) {
                     violations.push({
+                        type: 'critical',
+                        title: '11-Hour Driving Limit Violation',
                         date: day.date,
-                        type: '11-Hour Rule Violation',
-                        description: `Drove ${day.totalHours.driving.toFixed(1)} hours on ${day.date} (limit: 11 hours)`,
-                        severity: 'Critical'
+                        details: `Drove ${day.driveTime} (${driveHours.toFixed(1)} hours)`,
+                        regulation: '49 CFR 395.8(a)(1)',
+                        penalty: 'Up to $2,750 fine, potential license suspension'
+                    });
+                }
+
+                // Check 14-hour on-duty limit
+                if (totalDutyHours > 14) {
+                    violations.push({
+                        type: 'critical',
+                        title: '14-Hour On-Duty Limit Violation',
+                        date: day.date,
+                        details: `Total duty time: ${totalDutyHours.toFixed(1)} hours`,
+                        regulation: '49 CFR 395.8(a)(2)',
+                        penalty: 'Up to $2,750 fine, potential license suspension'
+                    });
+                }
+
+                // Check for 30-minute break requirement
+                if (driveHours > 8) {
+                    violations.push({
+                        type: 'warning',
+                        title: 'Potential 30-Minute Break Violation',
+                        date: day.date,
+                        details: `Drove ${day.driveTime} - verify 30-minute break was taken`,
+                        regulation: '49 CFR 395.8(e)',
+                        penalty: 'Up to $2,750 fine'
                     });
                 }
             });
+
+            return violations;
+        }
+
+        function calculateMetrics(data) {
+            const totalMiles = data.reduce((sum, day) => sum + day.totalMiles, 0);
+            const totalDriveHours = data.reduce((sum, day) => sum + parseTimeToHours(day.driveTime), 0);
+            const totalOnDutyHours = data.reduce((sum, day) => sum + parseTimeToHours(day.onDutyTime), 0);
+            const totalSleeperHours = data.reduce((sum, day) => sum + parseTimeToHours(day.sleeperTime), 0);
             
-            // Generate suggestions
-            const suggestions = [];
+            const averageMiles = totalMiles / data.length;
+            const averageDriveHours = totalDriveHours / data.length;
+            const averageSpeed = totalMiles / totalDriveHours;
             
-            // Suggest more consistent driving patterns
-            if (Math.max(...days.map(d => d.totalHours.driving)) - Math.min(...days.map(d => d.totalHours.driving)) > 7) {
-                suggestions.push({
-                    type: 'Driving Pattern',
-                    description: 'Consider more consistent daily driving hours to optimize rest and productivity',
-                    priority: 'Medium'
-                });
-            }
+            // Calculate fuel efficiency estimate (assuming 6.5 mpg average)
+            const estimatedFuelUsed = totalMiles / 6.5;
             
-            // Suggest better rest management if any day has less than 8 hours of rest
-            days.forEach(day => {
-                if (day.totalHours.sleeper < 8 && day.totalHours.driving > 5) {
-                    suggestions.push({
-                        date: day.date,
-                        type: 'Rest Management',
-                        description: `Only ${day.totalHours.sleeper.toFixed(1)} hours of rest on ${day.date} with ${day.totalHours.driving.toFixed(1)} hours of driving`,
-                        priority: 'High'
-                    });
-                }
-            });
+            // Calculate earnings estimate (assuming $0.50 per mile)
+            const estimatedEarnings = totalMiles * 0.50;
+            
+            // Calculate time utilization
+            const totalHours = data.length * 24;
+            const timeUtilization = ((totalDriveHours + totalOnDutyHours) / totalHours * 100);
+            
+            // Calculate rest efficiency
+            const restEfficiency = (totalSleeperHours / totalHours * 100);
+            
+            const violationDays = data.filter(day => day.violations.length > 0).length;
+            const complianceRate = ((data.length - violationDays) / data.length * 100);
 
             return {
-                days: days,
-                driverInfo: {
-                    name: 'Michael Singleton',
-                    dotNumber: '27935',
-                    licenseNumber: '36241901',
-                    licenseState: 'TX',
-                    carrier: 'System Transport'
-                },
-                weeklyTotals: {
-                    miles: totalMiles,
-                    drivingHours: totalDrivingHours,
-                    onDutyHours: totalOnDutyHours,
-                    offDutyHours: totalOffDutyHours,
-                    avgMilesPerDay: totalMiles / 7,
-                    avgDrivingHoursPerDay: totalDrivingHours / 7
-                },
-                routeSummary: routeSummary,
-                violations: violations,
-                suggestions: suggestions
+                totalMiles,
+                totalDriveHours: totalDriveHours.toFixed(1),
+                averageMiles: averageMiles.toFixed(0),
+                averageDriveHours: averageDriveHours.toFixed(1),
+                averageSpeed: averageSpeed.toFixed(1),
+                estimatedFuelUsed: estimatedFuelUsed.toFixed(0),
+                estimatedEarnings: estimatedEarnings.toFixed(0),
+                timeUtilization: timeUtilization.toFixed(1),
+                restEfficiency: restEfficiency.toFixed(1),
+                violationDays,
+                complianceRate: complianceRate.toFixed(1)
             };
         }
 
-        function displayResults(data) {
-            debug('Displaying results...');
-            
-            const content = document.getElementById('content');
-            
-            // Format dates for display
-            const startDate = data.days[0].date;
-            const endDate = data.days[data.days.length - 1].date;
-            
-            content.innerHTML = `
-                <div class="debug-info" id="debugInfo">
-                    <strong>Debug Information:</strong><br>
-                    <span id="debugText">Displaying results for ${data.driverInfo.name}</span>
-                </div>
-                
-                <div class="date-range-info">
-                    <h2>7-Day ELD Log Analysis</h2>
-                    <p>${startDate} to ${endDate}</p>
-                </div>
-                
-                <div class="weekly-summary">
-                    <h2>Driver Information</h2>
-                    <p><strong>Name:</strong> ${data.driverInfo.name}</p>
-                    <p><strong>USDOT #:</strong> ${data.driverInfo.dotNumber}</p>
-                    <p><strong>License:</strong> ${data.driverInfo.licenseNumber} (${data.driverInfo.licenseState})</p>
-                    <p><strong>Carrier:</strong> ${data.driverInfo.carrier || 'Not specified'}</p>
-                    
-                    <h2 style="margin-top: 20px;">Weekly Summary</h2>
-                    <div class="weekly-stats">
-                        <div class="weekly-stat">
-                            <div class="stat-value">${data.weeklyTotals.miles}</div>
-                            <div class="stat-label">Total Miles</div>
-                        </div>
-                        <div class="weekly-stat">
-                            <div class="stat-value">${data.weeklyTotals.drivingHours.toFixed(1)}</div>
-                            <div class="stat-label">Driving Hours</div>
-                        </div>
-                        <div class="weekly-stat">
-                            <div class="stat-value">${data.weeklyTotals.onDutyHours.toFixed(1)}</div>
-                            <div class="stat-label">On-Duty Hours</div>
-                        </div>
-                        <div class="weekly-stat">
-                            <div class="stat-value">${data.weeklyTotals.offDutyHours.toFixed(1)}</div>
-                            <div class="stat-label">Off-Duty Hours</div>
-                        </div>
-                    </div>
-                </div>
-                
-                ${data.violations.length > 0 ? `
-                <div class="violations-section">
-                    <h2>⚠️ HOS Violations (${data.violations.length})</h2>
-                    ${data.violations.map(v => `
-                        <div class="violation-item">
-                            <h3>${v.type}</h3>
-                            <p>${v.description}</p>
-                            <p><strong>Severity:</strong> ${v.severity}</p>
-                            ${v.date ? `<p><strong>Date:</strong> ${v.date}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-                ` : `
-                <div class="suggestions-section" style="background: #f0fff4;">
-                    <h2>✅ No HOS Violations Detected</h2>
-                    <p>Great job! No hours of service violations were detected in the last 7 days.</p>
-                </div>
-                `}
-                
-                ${data.suggestions.length > 0 ? `
-                <div class="suggestions-section">
-                    <h2>💡 Suggestions for Improvement (${data.suggestions.length})</h2>
-                    ${data.suggestions.map(s => `
-                        <div class="suggestion-item">
-                            <h3>${s.type}</h3>
-                            <p>${s.description}</p>
-                            <p><strong>Priority:</strong> ${s.priority}</p>
-                            ${s.date ? `<p><strong>Date:</strong> ${s.date}</p>` : ''}
-                        </div>
-                    `).join('')}
-                </div>
-                ` : ''}
-                
-                <div class="route-section">
-                    <h2>📍 Route Summary</h2>
-                    <table style="width: 100%; border-collapse: collapse;">
-                        <thead>
-                            <tr style="background: #f8f9fa; border-bottom: 2px solid #dee2e6;">
-                                <th style="padding: 10px; text-align: left;">Date</th>
-                                <th style="padding: 10px; text-align: left;">From</th>
-                                <th style="padding: 10px; text-align: left;">To</th>
-                                <th style="padding: 10px; text-align: right;">Miles</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${data.routeSummary.map(route => `
-                                <tr style="border-bottom: 1px solid #dee2e6;">
-                                    <td style="padding: 10px;">${route.date}</td>
-                                    <td style="padding: 10px;">${route.from}</td>
-                                    <td style="padding: 10px;">${route.to}</td>
-                                    <td style="padding: 10px; text-align: right;">${route.miles}</td>
-                                </tr>
-                            `).join('')}
-                            <tr style="font-weight: bold; background: #f8f9fa;">
-                                <td style="padding: 10px;" colspan="3">Total</td>
-                                <td style="padding: 10px; text-align: right;">${data.weeklyTotals.miles}</td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-                
-                <div class="daily-breakdown">
-                    <h2>📊 Daily Breakdown</h2>
-                    ${data.days.map(day => `
-                        <div class="day-card">
-                            <div class="day-header">
-                                <div class="day-date">${day.date}</div>
-                                <div class="day-miles">${day.miles} miles</div>
-                            </div>
-                            <div class="time-breakdown">
-                                <div class="time-item">
-                                    <div class="label">Driving</div>
-                                    <div class="value">${day.totalHours.driving.toFixed(1)} hrs</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">On Duty</div>
-                                    <div class="value">${day.totalHours.onDuty.toFixed(1)} hrs</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">Sleeper</div>
-                                    <div class="value">${day.totalHours.sleeper.toFixed(1)} hrs</div>
-                                </div>
-                                <div class="time-item">
-                                    <div class="label">Off Duty</div>
-                                    <div class="value">${day.totalHours.offDuty.toFixed(1)} hrs</div>
-                                </div>
-                            </div>
-                            <div style="margin-top: 15px;">
-                                <h4 style="margin-bottom: 5px;">Key Locations:</h4>
-                                <ul style="padding-left: 20px; color: #6c757d;">
-                                    ${day.events.filter((event, i, arr) => {
-                                        // Filter to show only significant location changes
-                                        if (i === 0 || i === arr.length - 1) return true;
-                                        const prevLoc = arr[i-1].location;
-                                        return event.location !== prevLoc;
-                                    }).slice(0, 5).map(event => `
-                                        <li>${event.time} - ${event.location}</li>
-                                    `).join('')}
-                                </ul>
-                            </div>
-                        </div>
-                    `).join('')}
-                </div>
-            `;
+        function parseTimeToHours(timeStr) {
+            const parts = timeStr.split(':');
+            return parseInt(parts[0]) + parseInt(parts[1]) / 60 + parseInt(parts[2]) / 3600;
         }
 
-        function displayError(message) {
-            const content = document.getElementById('content');
-            content.innerHTML = `
-                <div class="debug-info" id="debugInfo">
-                    <strong>Debug Information:</strong><br>
-                    <span id="debugText">Error occurred</span>
+        function displayResults(violations, metrics, data) {
+            // Display metrics
+            const metricsGrid = document.getElementById('metricsGrid');
+            metricsGrid.innerHTML = `
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.totalMiles}</div>
+                    <div class="metric-label">Total Miles</div>
                 </div>
-                <div class="error">
-                    <h3>Error Processing ELD Log</h3>
-                    <p>${message}</p>
-                    <p style="margin-top: 15px;">Please try again with a valid ELD log file.</p>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.totalDriveHours}</div>
+                    <div class="metric-label">Total Drive Hours</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.averageMiles}</div>
+                    <div class="metric-label">Avg Miles/Day</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.averageSpeed}</div>
+                    <div class="metric-label">Avg Speed (mph)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">$${metrics.estimatedEarnings}</div>
+                    <div class="metric-label">Est. Earnings</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.estimatedFuelUsed}</div>
+                    <div class="metric-label">Est. Fuel Used (gal)</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.timeUtilization}%</div>
+                    <div class="metric-label">Time Utilization</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.restEfficiency}%</div>
+                    <div class="metric-label">Rest Efficiency</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.complianceRate}%</div>
+                    <div class="metric-label">Compliance Rate</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-value">${metrics.violationDays}</div>
+                    <div class="metric-label">Violation Days</div>
                 </div>
             `;
+
+            // Display violations
+            const violationsContainer = document.getElementById('violationsContainer');
+            if (violations.length > 0) {
+                violationsContainer.innerHTML = `
+                    <h3>🚨 DOT Hours of Service Violations Detected</h3>
+                    ${violations.map(violation => `
+                        <div class="violation-card violation-${violation.type}">
+                            <div class="violation-header">
+                                <div class="violation-title">${violation.title}</div>
+                                <div class="violation-level level-${violation.type}">${violation.type.toUpperCase()}</div>
+                            </div>
+                            <p><strong>Date:</strong> ${violation.date}</p>
+                            <p><strong>Details:</strong> ${violation.details}</p>
+                            <p><strong>Regulation:</strong> ${violation.regulation}</p>
+                            <p><strong>Penalty:</strong> ${violation.penalty}</p>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                violationsContainer.innerHTML = `
+                    <div class="violation-card violation-info">
+                        <div class="violation-header">
+                            <div class="violation-title">✅ No DOT Violations Detected</div>
+                            <div class="violation-level level-info">COMPLIANT</div>
+                        </div>
+                        <p>All analyzed days are compliant with DOT Hours of Service regulations.</p>
+                    </div>
+                `;
+            }
+
+            // Display daily hours table
+            const dailyHoursBody = document.getElementById('dailyHoursBody');
+            dailyHoursBody.innerHTML = data.map(day => {
+                const hasViolations = day.violations.length > 0;
+                const statusClass = hasViolations ? 'status-violation' : 'status-compliant';
+                const statusText = hasViolations ? 'VIOLATION' : 'COMPLIANT';
+                
+                return `
+                    <tr>
+                        <td>${day.date}</td>
+                        <td>${day.driveTime}</td>
+                        <td>${day.onDutyTime}</td>
+                        <td>${day.offDutyTime}</td>
+                        <td>${day.sleeperTime}</td>
+                        <td>${day.totalMiles}</td>
+                        <td class="${statusClass}">${statusText}</td>
+                    </tr>
+                `;
+            }).join('');
         }
     </script>
 </body>
 </html>
-
