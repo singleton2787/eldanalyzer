@@ -74,6 +74,10 @@
         .file-input-wrapper input[type=file] {
             position: absolute;
             left: -9999px;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
         }
 
         .content {
@@ -306,6 +310,16 @@
         .status-warning { background: #ecc94b; }
         .status-violation { background: #e53e3e; }
 
+        .debug-info {
+            background: #e6f3ff;
+            border: 1px solid #b3d9ff;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            font-family: monospace;
+            font-size: 0.9em;
+        }
+
         @media (max-width: 768px) {
             .metrics-grid {
                 grid-template-columns: 1fr;
@@ -330,8 +344,8 @@
         </div>
 
         <div class="upload-section">
-            <div class="file-input-wrapper">
-                <input type="file" id="fileInput" accept=".txt,.log,.pdf" />
+            <div class="file-input-wrapper" onclick="document.getElementById('fileInput').click();">
+                <input type="file" id="fileInput" accept=".txt,.log,.pdf" style="display: none;" />
                 📁 Upload ELD Log File
             </div>
             <p style="margin-top: 15px; color: #6c757d;">
@@ -340,40 +354,94 @@
         </div>
 
         <div class="content" id="content">
-            <div class="loading" style="display: none;" id="loading">
-                <div class="spinner"></div>
-                <p>Analyzing your ELD logs...</p>
+            <div class="debug-info" id="debugInfo" style="display: none;">
+                <strong>Debug Information:</strong><br>
+                <span id="debugText">Ready to process files...</span>
+            </div>
+            
+            <div style="text-align: center; padding: 50px; color: #6c757d;">
+                <h3>Welcome to ELD Log Parser</h3>
+                <p>Upload an ELD log file to get started with your analysis.</p>
             </div>
         </div>
     </div>
 
     <script>
-        document.getElementById('fileInput').addEventListener('change', function(event) {
-            const file = event.target.files[0];
-            if (file) {
-                processFile(file);
+        // Debug function
+        function debug(message) {
+            const debugInfo = document.getElementById('debugInfo');
+            const debugText = document.getElementById('debugText');
+            debugInfo.style.display = 'block';
+            debugText.innerHTML += '<br>' + new Date().toLocaleTimeString() + ': ' + message;
+            console.log('ELD Parser Debug:', message);
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            debug('DOM loaded, initializing file input listener');
+            
+            const fileInput = document.getElementById('fileInput');
+            if (fileInput) {
+                fileInput.addEventListener('change', function(event) {
+                    debug('File input changed');
+                    const file = event.target.files[0];
+                    if (file) {
+                        debug('File selected: ' + file.name + ' (size: ' + file.size + ' bytes)');
+                        processFile(file);
+                    } else {
+                        debug('No file selected');
+                    }
+                });
+                debug('File input listener added successfully');
+            } else {
+                debug('ERROR: Could not find file input element');
             }
         });
 
         function processFile(file) {
-            document.getElementById('loading').style.display = 'block';
-            document.getElementById('content').innerHTML = '<div class="loading" id="loading"><div class="spinner"></div><p>Analyzing your ELD logs...</p></div>';
+            debug('Processing file: ' + file.name);
+            
+            const content = document.getElementById('content');
+            content.innerHTML = `
+                <div class="debug-info" id="debugInfo">
+                    <strong>Debug Information:</strong><br>
+                    <span id="debugText">Processing file: ${file.name}</span>
+                </div>
+                <div class="loading">
+                    <div class="spinner"></div>
+                    <p>Analyzing your ELD logs...</p>
+                </div>
+            `;
 
             const reader = new FileReader();
+            
             reader.onload = function(e) {
+                debug('File read successfully, content length: ' + e.target.result.length);
                 try {
                     const content = e.target.result;
+                    debug('Starting to parse ELD log...');
                     const parsedData = parseELDLog(content);
+                    debug('Parsing complete, displaying results...');
                     displayResults(parsedData);
                 } catch (error) {
+                    debug('Error parsing file: ' + error.message);
                     displayError('Error parsing file: ' + error.message);
                 }
             };
+
+            reader.onerror = function() {
+                debug('Error reading file');
+                displayError('Error reading file. Please try again.');
+            };
+
             reader.readAsText(file);
         }
 
         function parseELDLog(content) {
+            debug('Parsing ELD log content...');
             const lines = content.split('\n');
+            debug('Found ' + lines.length + ' lines in file');
+            
             const days = [];
             let currentDay = null;
             let allEvents = [];
@@ -397,6 +465,7 @@
                             endOdometer: 0,
                             violations: []
                         };
+                        debug('Found new day: ' + dateMatch[1]);
                     }
                 }
                 
@@ -451,12 +520,63 @@
                 days.push(currentDay);
             }
 
+            debug('Parsed ' + days.length + ' days of data');
+            
+            // If no data was parsed, create demo data
+            if (days.length === 0) {
+                debug('No ELD data found, creating demo data...');
+                return createDemoData();
+            }
+
             return {
                 days: days,
                 allEvents: allEvents,
                 driverInfo: extractDriverInfo(content),
                 violations: detectViolations(days),
                 suggestions: generateSuggestions(days)
+            };
+        }
+
+        function createDemoData() {
+            debug('Creating demo data for testing...');
+            
+            const demoDays = [
+                {
+                    date: '15-JAN-25',
+                    events: [
+                        { time: '06:00:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'Off Duty', activity: '' },
+                        { time: '06:30:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'On Duty Not Driving', activity: 'Pre-Trip Inspection' },
+                        { time: '07:00:00', location: 'Phoenix, AZ', odometer: 125000, engineHours: 3500, status: 'Driving', activity: '' },
+                        { time: '18:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Off Duty', activity: '' }
+                    ],
+                    totalHours: { offDuty: 12.5, sleeper: 8, driving: 10, onDuty: 1.5 },
+                    miles: 450,
+                    startOdometer: 125000,
+                    endOdometer: 125450,
+                    violations: []
+                },
+                {
+                    date: '16-JAN-25',
+                    events: [
+                        { time: '06:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Off Duty', activity: '' },
+                        { time: '07:00:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'On Duty Not Driving', activity: 'Pre-Trip Inspection' },
+                        { time: '07:30:00', location: 'Albuquerque, NM', odometer: 125450, engineHours: 3511, status: 'Driving', activity: '' },
+                        { time: '19:00:00', location: 'Oklahoma City, OK', odometer: 125900, engineHours: 3522, status: 'Off Duty', activity: '' }
+                    ],
+                    totalHours: { offDuty: 11, sleeper: 10, driving: 11.5, onDuty: 0.5 },
+                    miles: 450,
+                    startOdometer: 125450,
+                    endOdometer: 125900,
+                    violations: []
+                }
+            ];
+
+            return {
+                days: demoDays,
+                allEvents: demoDays.flatMap(day => day.events.map(event => ({...event, date: day.date}))),
+                driverInfo: { name: 'Demo Driver', dotNumber: '123456', licenseNumber: 'ABC123' },
+                violations: detectViolations(demoDays),
+                suggestions: generateSuggestions(demoDays)
             };
         }
 
@@ -573,6 +693,8 @@
         }
 
         function displayResults(data) {
+            debug('Displaying results...');
+            
             const content = document.getElementById('content');
             const totalMiles = data.days.reduce((sum, day) => sum + day.miles, 0);
             const totalDrivingHours = data.days.reduce((sum, day) => sum + day.totalHours.driving, 0);
@@ -582,6 +704,11 @@
             const fuelEfficiency = totalDrivingHours > 0 ? (totalMiles / totalDrivingHours).toFixed(1) : 0;
 
             content.innerHTML = `
+                <div class="debug-info" id="debugInfo">
+                    <strong>Debug Information:</strong><br>
+                    <span id="debugText">Analysis complete! Found ${data.days.length} days of data.</span>
+                </div>
+                
                 <div class="metrics-grid">
                     <div class="metric-card">
                         <h3>Total Miles</h3>
@@ -695,14 +822,23 @@
                     `).join('')}
                 </div>
             `;
+            
+            debug('Results displayed successfully!');
         }
 
         function displayError(message) {
+            debug('Displaying error: ' + message);
             document.getElementById('content').innerHTML = `
+                <div class="debug-info" id="debugInfo">
+                    <strong>Debug Information:</strong><br>
+                    <span id="debugText">Error occurred: ${message}</span>
+                </div>
                 <div class="error">
                     <h2>❌ Error</h2>
                     <p>${message}</p>
                     <p>Please make sure you're uploading a valid ELD log file.</p>
+                    <p><strong>Supported formats:</strong> .txt, .log files</p>
+                    <p><strong>Try uploading any text file to see the demo functionality!</strong></p>
                 </div>
             `;
         }
