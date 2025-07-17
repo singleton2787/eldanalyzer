@@ -5,8 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ELD Driver Log Analyzer</title>
     <style>
-        /* [all your CSS from your previous file here, unchanged for brevity] */
-
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
         .container { max-width: 1200px; margin: 0 auto; background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); border-radius: 20px; padding: 30px; box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1); }
@@ -48,8 +46,9 @@
         .loading { text-align: center; padding: 50px; color: #7f8c8d; }
         .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .debug-section { background: #f8f9fa; padding: 20px; border-radius: 10px; margin-top: 20px; }
+        .debug-text { font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; background: white; padding: 10px; border-radius: 5px; }
     </style>
-    <!-- PDF.js CDN -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 </head>
 <body>
@@ -123,8 +122,17 @@
                     </table>
                 </div>
             </div>
+
+            <div class="section">
+                <h2>🔍 Debug Information</h2>
+                <div class="debug-section">
+                    <h4>Extracted Text Preview:</h4>
+                    <div id="debugText" class="debug-text"></div>
+                </div>
+            </div>
         </div>
     </div>
+
     <script>
         class ELDAnalyzer {
             constructor() {
@@ -156,6 +164,11 @@
 
                 try {
                     const text = await this.readFile(this.file);
+                    console.log('Extracted text:', text.substring(0, 1000));
+                    
+                    // Show debug information
+                    document.getElementById('debugText').textContent = text.substring(0, 1000) + '...';
+                    
                     this.parseLogData(text);
                     this.calculateViolations();
                     this.generateDailyStats();
@@ -168,26 +181,48 @@
                 }
             }
 
-            readFile(file) {
-                // PDF support using PDF.js
+            async readFile(file) {
                 return new Promise((resolve, reject) => {
-                    if (
-                        file.type === "application/pdf" ||
-                        file.name.endsWith('.pdf')
-                    ) {
+                    if (file.type === "application/pdf" || file.name.endsWith('.pdf')) {
                         const reader = new FileReader();
                         reader.onload = async (e) => {
-                            const typedarray = new Uint8Array(e.target.result);
                             try {
+                                const typedarray = new Uint8Array(e.target.result);
                                 const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
                                 let textContent = '';
+                                
                                 for (let i = 1; i <= pdf.numPages; i++) {
                                     const page = await pdf.getPage(i);
                                     const txt = await page.getTextContent();
-                                    // PDF.js returns lots of "chunks", join them into lines.
-                                    const pageText = txt.items.map(item => item.str).join(' ');
+                                    
+                                    // Better text extraction - preserve line breaks and spacing
+                                    let pageText = '';
+                                    let lastY = null;
+                                    
+                                    for (let j = 0; j < txt.items.length; j++) {
+                                        const item = txt.items[j];
+                                        
+                                        // Add line break if Y position changed significantly
+                                        if (lastY !== null && Math.abs(lastY - item.transform[5]) > 5) {
+                                            pageText += '\n';
+                                        }
+                                        
+                                        pageText += item.str;
+                                        
+                                        // Add space if the next item is far away horizontally
+                                        if (j < txt.items.length - 1) {
+                                            const nextItem = txt.items[j + 1];
+                                            if (Math.abs(item.transform[4] + item.width - nextItem.transform[4]) > 5) {
+                                                pageText += ' ';
+                                            }
+                                        }
+                                        
+                                        lastY = item.transform[5];
+                                    }
+                                    
                                     textContent += pageText + '\n';
                                 }
+                                
                                 resolve(textContent);
                             } catch (err) {
                                 reject(err);
@@ -196,7 +231,6 @@
                         reader.onerror = reject;
                         reader.readAsArrayBuffer(file);
                     } else {
-                        // Default to text reading
                         const reader = new FileReader();
                         reader.onload = e => resolve(e.target.result);
                         reader.onerror = reject;
@@ -206,77 +240,165 @@
             }
 
             parseLogData(text) {
-                // [parsing logic: unchanged]
                 const lines = text.split('\n');
                 this.logData = [];
                 let currentDay = null;
 
-                for (let line of lines) {
-                    line = line.trim();
-                    
-                    // Parse record date
-                    if (line.includes('Record Date')) {
-                        const parts = line.split(/\s+/);
-                        const dateIndex = parts.findIndex(p => p.includes('-'));
-                        if (dateIndex !== -1) {
-                            currentDay = {
-                                date: parts[dateIndex],
-                                events: [],
-                                totalHours: {
-                                    offDuty: 0,
-                                    sleeperBerth: 0,
-                                    driving: 0,
-                                    onDuty: 0
-                                },
-                                miles: 0,
-                                startOdometer: 0,
-                                endOdometer: 0
-                            };
-                        }
+                console.log('Parsing', lines.length, 'lines');
+
+                for (let i = 0; i < lines.length; i++) {
+                    const line = lines[i].trim();
+                    if (!line) continue;
+
+                    console.log('Processing line:', line);
+
+                    // Look for date patterns - more flexible matching
+                    const datePatterns = [
+                        /Record\s+Date[:\s]*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
+                        /Date[:\s]*(\d{2}[-\/]\d{2}[-\/]\d{4})/i,
+                        /(\d{2}[-\/]\d{2}[-\/]\d{4})/,
+                        /(\d{4}[-\/]\d{2}[-\/]\d{2})/
+                    ];
+
+                    let dateMatch = null;
+                    for (const pattern of datePatterns) {
+                        dateMatch = line.match(pattern);
+                        if (dateMatch) break;
                     }
 
-                    // Parse odometer data
-                    if (line.includes('Start-End Odometer')) {
-                        const match = line.match(/(\d+)-(\d+)/);
-                        if (match && currentDay) {
+                    if (dateMatch) {
+                        if (currentDay && currentDay.date) {
+                            this.logData.push(currentDay);
+                        }
+                        
+                        currentDay = {
+                            date: dateMatch[1],
+                            events: [],
+                            totalHours: {
+                                offDuty: 0,
+                                sleeperBerth: 0,
+                                driving: 0,
+                                onDuty: 0
+                            },
+                            miles: 0,
+                            startOdometer: 0,
+                            endOdometer: 0
+                        };
+                        console.log('Found date:', dateMatch[1]);
+                        continue;
+                    }
+
+                    if (!currentDay) continue;
+
+                    // Look for odometer data - more flexible patterns
+                    const odometerPatterns = [
+                        /odometer[:\s]*(\d+)[-\s]*(\d+)/i,
+                        /(\d+)\s*[-–]\s*(\d+)\s*miles?/i,
+                        /start[:\s]*(\d+).*end[:\s]*(\d+)/i
+                    ];
+
+                    for (const pattern of odometerPatterns) {
+                        const match = line.match(pattern);
+                        if (match) {
                             currentDay.startOdometer = parseInt(match[1]);
                             currentDay.endOdometer = parseInt(match[2]);
                             currentDay.miles = currentDay.endOdometer - currentDay.startOdometer;
+                            console.log('Found odometer:', match[1], '-', match[2], 'Miles:', currentDay.miles);
+                            break;
                         }
                     }
 
-                    // Parse time entries
-                    const timeMatch = line.match(/^(\d{2}):(\d{2}):(\d{2})\s+(.+?)\s+(\d+)\s+(\d+\.\d+)\s+(\w+)/);
-                    if (timeMatch && currentDay) {
-                        const [, hour, minute, second, location, odometer, engineHours, status] = timeMatch;
-                        currentDay.events.push({
-                            time: `${hour}:${minute}:${second}`,
-                            location,
-                            odometer: parseInt(odometer),
-                            engineHours: parseFloat(engineHours),
-                            status,
-                            fullLine: line
-                        });
+                    // Look for time entries - more flexible patterns
+                    const timePatterns = [
+                        /(\d{1,2}):(\d{2}):(\d{2})\s+(.+?)\s+(\d+)\s+(\d+\.?\d*)\s+(\w+)/,
+                        /(\d{1,2}):(\d{2})\s+(.+?)\s+(\w+)/,
+                        /(\d{1,2}):(\d{2}):(\d{2})\s+(\w+)/
+                    ];
+
+                    for (const pattern of timePatterns) {
+                        const match = line.match(pattern);
+                        if (match) {
+                            currentDay.events.push({
+                                time: match[1] + ':' + match[2] + (match[3] ? ':' + match[3] : ':00'),
+                                location: match[4] || 'Unknown',
+                                odometer: match[5] ? parseInt(match[5]) : 0,
+                                engineHours: match[6] ? parseFloat(match[6]) : 0,
+                                status: match[7] || match[4] || 'Unknown',
+                                fullLine: line
+                            });
+                            break;
+                        }
                     }
 
-                    // Parse daily totals
-                    const hoursMatch = line.match(/(\d{2}):(\d{2}):(\d{2})/g);
-                    if (hoursMatch && hoursMatch.length === 4 && currentDay) {
-                        currentDay.totalHours.offDuty = this.parseTimeToHours(hoursMatch[0]);
-                        currentDay.totalHours.sleeperBerth = this.parseTimeToHours(hoursMatch[1]);
-                        currentDay.totalHours.driving = this.parseTimeToHours(hoursMatch[2]);
-                        currentDay.totalHours.onDuty = this.parseTimeToHours(hoursMatch[3]);
-                        
-                        if (currentDay.date) {
-                            this.logData.push(currentDay);
+                    // Look for daily totals - more flexible patterns
+                    const hourPatterns = [
+                        /(\d{1,2}):(\d{2}):(\d{2})/g,
+                        /(\d{1,2}):(\d{2})/g
+                    ];
+
+                    for (const pattern of hourPatterns) {
+                        const matches = [...line.matchAll(pattern)];
+                        if (matches.length >= 4) {
+                            currentDay.totalHours.offDuty = this.parseTimeToHours(matches[0][0]);
+                            currentDay.totalHours.sleeperBerth = this.parseTimeToHours(matches[1][0]);
+                            currentDay.totalHours.driving = this.parseTimeToHours(matches[2][0]);
+                            currentDay.totalHours.onDuty = this.parseTimeToHours(matches[3][0]);
+                            console.log('Found daily totals:', currentDay.totalHours);
+                            break;
+                        }
+                    }
+
+                    // Alternative: look for specific status keywords and try to extract hours
+                    const statusHours = {
+                        'off duty': 0,
+                        'sleeper berth': 0,
+                        'driving': 0,
+                        'on duty': 0
+                    };
+
+                    for (const [status, _] of Object.entries(statusHours)) {
+                        const statusRegex = new RegExp(status + '[:\\s]*([\\d\\.]+)\\s*h', 'i');
+                        const match = line.match(statusRegex);
+                        if (match) {
+                            const hours = parseFloat(match[1]);
+                            switch (status) {
+                                case 'off duty':
+                                    currentDay.totalHours.offDuty = hours;
+                                    break;
+                                case 'sleeper berth':
+                                    currentDay.totalHours.sleeperBerth = hours;
+                                    break;
+                                case 'driving':
+                                    currentDay.totalHours.driving = hours;
+                                    break;
+                                case 'on duty':
+                                    currentDay.totalHours.onDuty = hours;
+                                    break;
+                            }
                         }
                     }
                 }
+
+                // Don't forget the last day
+                if (currentDay && currentDay.date) {
+                    this.logData.push(currentDay);
+                }
+
+                console.log('Parsed', this.logData.length, 'days of data');
+                console.log('Sample data:', this.logData[0]);
             }
 
             parseTimeToHours(timeString) {
-                const [hours, minutes, seconds] = timeString.split(':').map(Number);
-                return hours + minutes / 60 + seconds / 3600;
+                if (!timeString) return 0;
+                
+                const parts = timeString.split(':');
+                let hours = 0;
+                
+                if (parts.length >= 1) hours += parseInt(parts[0]) || 0;
+                if (parts.length >= 2) hours += (parseInt(parts[1]) || 0) / 60;
+                if (parts.length >= 3) hours += (parseInt(parts[2]) || 0) / 3600;
+                
+                return hours;
             }
 
             calculateViolations() {
@@ -305,10 +427,11 @@
                     }
 
                     // 10-hour rest requirement
-                    if (day.totalHours.offDuty + day.totalHours.sleeperBerth < 10) {
+                    const totalRest = day.totalHours.offDuty + day.totalHours.sleeperBerth;
+                    if (totalRest < 10) {
                         violations.push({
                             type: 'Insufficient Rest',
-                            description: `Less than 10 hours of rest: ${(day.totalHours.offDuty + day.totalHours.sleeperBerth).toFixed(2)} hours`,
+                            description: `Less than 10 hours of rest: ${totalRest.toFixed(2)} hours`,
                             severity: 'Warning'
                         });
                     }
@@ -323,13 +446,29 @@
             }
 
             generateDailyStats() {
+                if (this.logData.length === 0) {
+                    this.dailyStats = {
+                        totalDays: 0,
+                        totalMiles: 0,
+                        totalViolations: 0,
+                        avgDrivingHours: 0,
+                        avgOnDutyHours: 0,
+                        avgMilesPerDay: 0
+                    };
+                    return;
+                }
+
+                const totalMiles = this.logData.reduce((sum, day) => sum + (day.miles || 0), 0);
+                const totalDriving = this.logData.reduce((sum, day) => sum + (day.totalHours.driving || 0), 0);
+                const totalOnDuty = this.logData.reduce((sum, day) => sum + (day.totalHours.onDuty || 0), 0);
+
                 this.dailyStats = {
                     totalDays: this.logData.length,
-                    totalMiles: this.logData.reduce((sum, day) => sum + day.miles, 0),
+                    totalMiles: totalMiles,
                     totalViolations: this.violations.length,
-                    avgDrivingHours: this.logData.reduce((sum, day) => sum + day.totalHours.driving, 0) / this.logData.length,
-                    avgOnDutyHours: this.logData.reduce((sum, day) => sum + day.totalHours.onDuty, 0) / this.logData.length,
-                    avgMilesPerDay: this.logData.reduce((sum, day) => sum + day.miles, 0) / this.logData.length
+                    avgDrivingHours: totalDriving / this.logData.length,
+                    avgOnDutyHours: totalOnDuty / this.logData.length,
+                    avgMilesPerDay: totalMiles / this.logData.length
                 };
             }
 
@@ -338,7 +477,7 @@
                 document.getElementById('totalDays').textContent = this.dailyStats.totalDays;
                 document.getElementById('totalMiles').textContent = this.dailyStats.totalMiles.toLocaleString();
                 document.getElementById('totalViolations').textContent = this.dailyStats.totalViolations;
-                document.getElementById('avgDailyMiles').textContent = Math.round(this.dailyStats.avgMilesPerDay);
+                document.getElementById('avgDailyMiles').textContent = Math.round(this.dailyStats.avgMilesPerDay || 0);
 
                 // Display violations
                 this.displayViolations();
@@ -380,25 +519,26 @@
                 let html = '';
 
                 for (const day of this.logData) {
-                    const status = this.violations.some(v => v.date === day.date) ? 'violation' : 'good';
-                    const statusIcon = status === 'violation' ? '🚨' : '✅';
+                    const hasViolations = this.violations.some(v => v.date === day.date);
+                    const statusIcon = hasViolations ? '🚨' : '✅';
+                    const statusClass = hasViolations ? 'violation' : 'good';
                     
                     html += `
                         <div class="day-summary">
                             <div class="day-stat">
-                                <div class="day-stat-value ${status}">${statusIcon}</div>
+                                <div class="day-stat-value ${statusClass}">${statusIcon}</div>
                                 <div class="day-stat-label">${day.date}</div>
                             </div>
                             <div class="day-stat">
-                                <div class="day-stat-value">${day.totalHours.driving.toFixed(1)}h</div>
+                                <div class="day-stat-value">${(day.totalHours.driving || 0).toFixed(1)}h</div>
                                 <div class="day-stat-label">Driving</div>
                             </div>
                             <div class="day-stat">
-                                <div class="day-stat-value">${day.totalHours.onDuty.toFixed(1)}h</div>
+                                <div class="day-stat-value">${(day.totalHours.onDuty || 0).toFixed(1)}h</div>
                                 <div class="day-stat-label">On Duty</div>
                             </div>
                             <div class="day-stat">
-                                <div class="day-stat-value">${day.miles}</div>
+                                <div class="day-stat-value">${day.miles || 0}</div>
                                 <div class="day-stat-label">Miles</div>
                             </div>
                         </div>
@@ -410,9 +550,10 @@
             displayDrivingPatterns() {
                 const container = document.getElementById('drivingPatterns');
                 
-                const avgDriving = this.dailyStats.avgDrivingHours;
-                const avgOnDuty = this.dailyStats.avgOnDutyHours;
-                const avgMiles = this.dailyStats.avgMilesPerDay;
+                const avgDriving = this.dailyStats.avgDrivingHours || 0;
+                const avgOnDuty = this.dailyStats.avgOnDutyHours || 0;
+                const avgMiles = this.dailyStats.avgMilesPerDay || 0;
+                const milesPerHour = avgDriving > 0 ? avgMiles / avgDriving : 0;
 
                 container.innerHTML = `
                     <div class="day-summary">
@@ -429,12 +570,12 @@
                             <div class="day-stat-label">Avg Miles/Day</div>
                         </div>
                         <div class="day-stat">
-                            <div class="day-stat-value">${(avgMiles / avgDriving).toFixed(1)}</div>
+                            <div class="day-stat-value">${milesPerHour.toFixed(1)}</div>
                             <div class="day-stat-label">Miles/Hour</div>
                         </div>
                     </div>
                     <div class="progress-bar">
-                        <div class="progress-fill" style="width: ${(avgDriving / 11) * 100}%"></div>
+                        <div class="progress-fill" style="width: ${Math.min((avgDriving / 11) * 100, 100)}%"></div>
                     </div>
                     <p style="text-align: center; margin-top: 10px;">Average driving time vs 11-hour limit</p>
                 `;
@@ -448,24 +589,10 @@
                     const hasViolations = this.violations.some(v => v.date === day.date);
                     const status = hasViolations ? '🚨 Violations' : '✅ Compliant';
                     const statusClass = hasViolations ? 'violation' : 'good';
+                    const violationCount = hasViolations ? this.violations.find(v => v.date === day.date).violations.length : 0;
                     
                     html += `
                         <tr>
                             <td>${day.date}</td>
-                            <td>${day.totalHours.driving.toFixed(2)}h</td>
-                            <td>${day.totalHours.onDuty.toFixed(2)}h</td>
-                            <td>${day.miles}</td>
-                            <td>${hasViolations ? this.violations.find(v => v.date === day.date).violations.length : 0}</td>
-                            <td><span class="${statusClass}">${status}</span></td>
-                        </tr>
-                    `;
-                }
-                tbody.innerHTML = html;
-            }
-        }
-
-        // Initialize the analyzer
-        const analyzer = new ELDAnalyzer();
-    </script>
-</body>
-</html>
+                            <td>${(day.totalHours.driving || 0).toFixed(2)}h</td>
+                            <td>${(day.total
