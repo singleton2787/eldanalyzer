@@ -595,4 +595,19 @@
                         <tr>
                             <td>${day.date}</td>
                             <td>${(day.totalHours.driving || 0).toFixed(2)}h</td>
-                            <td>${(day.total
+                            <td>${(day.totalHours.onDuty || 0).toFixed(2)}h</td>
+                            <td>${day.miles || 0}</td>
+                            <td>${violationCount}</td>
+                            <td><span class="${statusClass}">${status}</span></td>
+                        </tr>
+                    `;
+                }
+                tbody.innerHTML = html;
+            }
+        }
+
+        // Initialize the analyzer
+        const analyzer = new ELDAnalyzer();
+    </script>
+</body>
+</html>
